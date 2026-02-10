@@ -58,8 +58,7 @@ export async function createUser(
 export async function updateUser(id: number, data: Partial<User>) {
   const users = await sql`
     UPDATE users SET
-      lastname = COALESCE(${data.lastname || null}, lastname),
-      firstname = COALESCE(${data.firstname || null}, firstname),
+      full_name = COALESCE(${data.full_name || null}, full_name),
       phone = COALESCE(${data.phone || null}, phone),
       address = COALESCE(${data.address || null}, address),
       date_of_birth = COALESCE(${data.date_of_birth || null}, date_of_birth),
