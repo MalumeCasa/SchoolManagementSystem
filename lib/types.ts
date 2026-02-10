@@ -2,10 +2,9 @@
 export type UserRole = "admin" | "teacher" | "student"
 
 export type User = {
+  full_name: string
   id: number
   email: string
-  lastname: string
-  firstname: string
   password_hash?: string
   role: UserRole
   student_id?: string

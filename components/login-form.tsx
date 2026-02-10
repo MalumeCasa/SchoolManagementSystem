@@ -23,7 +23,7 @@ export function LoginForm() {
     setError("")
     setIsLoading(true)
 
-    console.log("[v0] Login form submitted for:", email)
+    console.log("Login form submitted for:", email)
 
     try {
       const response = await fetch("/api/auth/login", {
@@ -33,19 +33,19 @@ export function LoginForm() {
       })
 
       const data = await response.json()
-      console.log("[v0] Login response:", response.status, data)
+      console.log("Login response:", response.status, data)
 
       if (!response.ok) {
         setError(data.error || "Login failed")
         return
       }
 
-      console.log("[v0] Login successful, user role:", data.user.role)
+      console.log("Login successful, user role:", data.user.role)
       // Redirect based on school role
       router.push("/dashboard")
       router.refresh()
     } catch (err) {
-      console.error("[v0] Login error:", err)
+      console.error("Login error:", err)
       setError("An unexpected error occurred")
     } finally {
       setIsLoading(false)

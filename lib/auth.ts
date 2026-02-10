@@ -64,7 +64,7 @@ export async function requireAuth() {
   return {
     id: user.id,
     email: user.email,
-    fullName: `${user.lastname} ${user.firstname}`,
+    fullName: `${user.full_name}`,
     role: user.role,
     studentId: user.student_id,
     teacherId: user.teacher_id,
