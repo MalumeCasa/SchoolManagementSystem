@@ -9,7 +9,9 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@neondatabase/serverless": "^1.0.2",
+    "@types/pdfjs-dist": "^2.10.377",
     "@vercel/analytics": "^1.6.1",
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
@@ -18,11 +20,13 @@
     "lucide-react": "^0.563.0",
     "neondb": "^0.8.2",
     "next": "16.1.6",
+    "pdfjs-dist": "^5.4.624",
     "pg": "^8.18.0",
     "radix-ui": "^1.4.3",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "tailwind-merge": "^3.4.0",
+    "tesseract.js": "^7.0.0",
     "vercel": "^50.12.3"
   },
   "devDependencies": {
