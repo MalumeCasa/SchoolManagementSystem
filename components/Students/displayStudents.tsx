@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ShowcaseSection } from "@/components/Layouts/showcase-section";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@components/ui/table";
 import { Button } from "@/components/ui/button";
-import { deleteStudent, exportStudents } from "@api/student-action";
+import { deleteStudent, exportStudents } from "@/app/api/student-actions";
 import {
   Download,
   FileText,

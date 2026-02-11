@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import { ShowcaseSection } from "@/components/Layouts/showcase-section";
 
-import { getStudents } from "@api/student-action";
+import { getStudents } from "@/app/api/student-actions";
 import { DisplayStudentsPage } from "@components/Students/displayStudents";
 
 export const metadata: Metadata = {
