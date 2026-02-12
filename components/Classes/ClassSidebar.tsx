@@ -9,7 +9,7 @@ import {
   X,
   Plus,
 } from "lucide-react";
-import { ClassSection, ActiveView, EditingClass, Student } from '@api/types';
+import { ClassSection, ActiveView, EditingClass, Student } from '@/api/types';
 
 interface ClassSidebarProps {
   classSections: ClassSection[];

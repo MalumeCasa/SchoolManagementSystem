@@ -1,14 +1,14 @@
 import { redirect } from "next/navigation";
 import { requireAuth } from "@/lib/auth";
 import { Layout } from "@/components/layout";
-import StudentDirectoryPage from "./StudentPage"; // adjust path
+import StaffDirectoryPage from "./staff/StaffDirectoryPage"; // adjust path
 
 export const metadata = {
-  title: "Students - EduManage",
-  description: "School Management System Student Directory",
+  title: "Staff - EduManage",
+  description: "School Management System Staff Directory",
 };
 
-export default async function StudentsPage() {
+export default async function StaffPage() {
   const user = await requireAuth();
 
   if (!user) {
@@ -17,7 +17,7 @@ export default async function StudentsPage() {
 
   return (
     <Layout user={user}>
-      {user.role === "admin" || user.role === "teacher" ? <StudentDirectoryPage /> : null}
+      {user.role === "admin" || user.role === "teacher" ? <StaffDirectoryPage /> : null}
       {/* Add other role dashboards here if needed */}
       
     </Layout>

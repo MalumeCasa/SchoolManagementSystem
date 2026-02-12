@@ -23,7 +23,7 @@
       "@lib/*": ["./lib/*"],
       "@components/*": ["./components/*"],
       "@app/*": ["./app/*"],
-      "@api/*": ["./app/api/*"]
+      "@api/*": ["./api/*"]
     }
   },
   "include": [

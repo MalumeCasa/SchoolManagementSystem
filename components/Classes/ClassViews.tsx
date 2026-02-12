@@ -12,7 +12,7 @@ import {
   Clock,
   Calendar,
 } from "lucide-react";
-import { Student, Teacher, Subject, ClassData, ActiveView } from '@api/types';
+import { Student, Teacher, Subject, ClassData, ActiveView } from '@/api/types';
 
 interface ClassViewsProps {
   activeView: ActiveView;

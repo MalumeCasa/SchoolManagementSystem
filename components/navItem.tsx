@@ -7,6 +7,7 @@ import {
   ClipboardList,
   Bell,
   Settings,
+  DollarSign,
   LogOut,
   Menu,
   X,
@@ -16,6 +17,7 @@ import {
   UserCheck,
   BarChart3,
   Home,
+  ChartNoAxesGantt,
   UserCog,
   Briefcase,
 } from "lucide-react";
@@ -52,7 +54,7 @@ export const navItems: NavItem[] = [
   },
   {
     title: "Student Management",
-    icon: BookOpen,
+    icon: GraduationCap,
     roles: ["admin", "teacher"],
     children: [
       { 
@@ -64,7 +66,7 @@ export const navItems: NavItem[] = [
       { 
         title: "Fees", 
         href: "/student/fees", 
-        icon: BookOpen, 
+        icon: DollarSign, 
         roles: ["admin", "teacher"] 
       },
       { 
@@ -88,36 +90,52 @@ export const navItems: NavItem[] = [
       },
       { 
         title: "Subjects", 
-        href: "/dashboard/subjects", 
+        href: "/academics/subjects", 
         icon: BookOpen, 
         roles: ["admin", "teacher"] 
       },
       { 
         title: "Curriculum", 
-        href: "/dashboard/curriculum", 
+        href: "/academics/curriculum", 
         icon: ClipboardList, 
         roles: ["admin", "teacher"] 
       },
     ],
   },
   { 
-    title: "Students", 
-    href: "/students", 
-    icon: GraduationCap, 
-    roles: ["admin", "teacher"] 
-  },
-  { 
-    title: "Teachers", 
+    title: "Staff", 
     href: "/dashboard/teachers", 
     icon: Users, 
-    roles: ["admin"] 
+    roles: ["admin"],
+    children: [
+      { 
+        title: "Staff", 
+        href: "/staff", 
+        icon: Users, 
+        roles: ["admin"] 
+      },
+        {
+            title: "Attendance",
+            href: "/staff/attendance",
+            icon: UserCheck,
+            roles: ["admin", "teacher"]
+        },
+        // leave, performance, 
+        {
+            title: "Performance",
+            href: "/staff/performance",
+            icon: ChartNoAxesGantt,
+            roles: ["admin", "teacher"]
+        },
+        {
+            title: "Leave",
+            href: "/staff/leave",
+            icon: Briefcase,
+            roles: ["admin", "teacher"]
+        }
+    ],
   },
-  { 
-    title: "Attendance", 
-    href: "/dashboard/attendance", 
-    icon: UserCheck, 
-    roles: ["admin", "teacher", "student"] 
-  },
+  
   { 
     title: "Schedule", 
     href: "/dashboard/schedule", 
