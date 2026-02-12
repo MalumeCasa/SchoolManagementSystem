@@ -1,25 +1,50 @@
-import { redirect } from "next/navigation";
-import { requireAuth } from "@/lib/auth";
-import { Layout } from "@/components/layout";
-import StaffDirectoryPage from "./staff/StaffDirectoryPage"; 
+// This is a Next.js Server Component
+import React from "react";
+import type { Metadata } from "next";
 
+import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
+import { getAllStaff } from '@/app/api/staff-actions';
+import { DisplayStaffPage } from '@components/Staff/displayStaff';
+import type { Staff } from '@/app/api/db/types';
 
-export const metadata = {
-  title: "Staff - EduManage",
-  description: "School Management System Staff Directory",
+export const metadata: Metadata = {
+    title: "Staff Directory - School Management System",
+    description: "Manage and view all staff members in the school",
 };
 
-export default async function StaffPage() {
-  const user = await requireAuth();
+// Helper to transform null to undefined
+const transformStaffData = (data: any[]): Staff[] => {
+    return data.map(staff => ({
+        ...staff,
+        address: staff.address ?? undefined,
+        dateOfBirth: staff.dateOfBirth ?? undefined,
+        gender: staff.gender ?? undefined,
+        emergencyContact: staff.emergencyContact ?? undefined,
+        emergencyPhone: staff.emergencyPhone ?? undefined,
+        terminationDate: staff.terminationDate ?? undefined,
+        employmentStatus: staff.employmentStatus ?? undefined,
+        specialization: staff.specialization ?? undefined,
+        certifications: staff.certifications ?? undefined,
+        subjects: staff.subjects ?? undefined,
+        permissions: staff.permissions ?? undefined,
+        accessLevel: staff.accessLevel ?? undefined,
+        isActive: staff.isActive ?? undefined,
+        createdAt: staff.createdAt ?? undefined,
+        updatedAt: staff.updatedAt ?? undefined,
+    }));
+};
 
-  if (!user) {
-    redirect("/login");
-  }
+export default async function StaffDirectoryPage() {
+    // Fetch staff data directly in the Server Component
+    const staffResult = await getAllStaff();
+    
+    // Handle the API response properly and transform data
+    const staff = staffResult?.success ? transformStaffData(staffResult.data) : [];
 
-  return (
-    <Layout user={user}>
-      {user.role === "admin" || user.role === "teacher" ? <StaffDirectoryPage /> : null}
-      
-    </Layout>
-  );
+    return (
+        <>
+            <Breadcrumb pageName="Staff Directory" />
+            <DisplayStaffPage staff={staff} />
+        </>
+    );
 }

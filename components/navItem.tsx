@@ -1,4 +1,3 @@
-// components/navItem.ts
 import {
   LayoutDashboard,
   Users,
@@ -8,12 +7,19 @@ import {
   ClipboardList,
   Bell,
   Settings,
+  DollarSign,
+  LogOut,
+  Menu,
+  X,
+  ChevronDown,
+  ChevronRight,
   School,
   UserCheck,
   BarChart3,
+  Home,
+  ChartNoAxesGantt,
+  UserCog,
   Briefcase,
-  Clock,
-  Star,
 } from "lucide-react";
 
 export type UserRole = "admin" | "teacher" | "student";
@@ -27,67 +33,109 @@ export interface NavItem {
 }
 
 export const navItems: NavItem[] = [
-  { 
-    title: "Dashboard", 
-    href: "/dashboard", 
-    icon: LayoutDashboard, 
-    roles: ["admin", "teacher", "student"] 
+  {
+    title: "Dashboard",
+    icon: LayoutDashboard,
+    roles: ["admin", "teacher", "student"],
+    children: [
+      { 
+        title: "Overview", 
+        href: "/dashboard", 
+        icon: Home, 
+        roles: ["admin", "teacher", "student"] 
+      },
+      { 
+        title: "Analytics", 
+        href: "/dashboard/analytics", 
+        icon: BarChart3, 
+        roles: ["admin", "teacher"] 
+      },
+    ],
   },
   {
-    title: "Staff",
-    icon: Briefcase,
+    title: "Student Management",
+    icon: GraduationCap,
     roles: ["admin", "teacher"],
     children: [
       { 
-        title: "Attendance", 
-        href: "/staff/attendance", 
-        icon: Clock, 
+        title: "Students", 
+        href: "/student/students", 
+        icon: School, 
+        roles: ["admin", "teacher", "student"] 
+      },
+      { 
+        title: "Fees", 
+        href: "/student/fees", 
+        icon: DollarSign, 
         roles: ["admin", "teacher"] 
       },
       { 
-        title: "Performance", 
-        href: "/staff/performance", 
-        icon: Star, 
+        title: "Attendance", 
+        href: "/student/attendance", 
+        icon: ClipboardList, 
+        roles: ["admin", "teacher"] 
+      },
+    ],
+  },
+  {
+    title: "Academics",
+    icon: BookOpen,
+    roles: ["admin", "teacher", "student"],
+    children: [
+      { 
+        title: "Classes", 
+        href: "/academics/classes", 
+        icon: School, 
+        roles: ["admin", "teacher", "student"] 
+      },
+      { 
+        title: "Subjects", 
+        href: "/academics/subjects", 
+        icon: BookOpen, 
+        roles: ["admin", "teacher"] 
+      },
+      { 
+        title: "Curriculum", 
+        href: "/academics/curriculum", 
+        icon: ClipboardList, 
         roles: ["admin", "teacher"] 
       },
     ],
   },
   { 
-    title: "Students", 
-    href: "/students", 
-    icon: GraduationCap, 
-    roles: ["admin", "teacher"] 
-  },
-  { 
-    title: "Teachers", 
+    title: "Staff Management", 
     href: "/dashboard/teachers", 
     icon: Users, 
-    roles: ["admin"] 
+    roles: ["admin"],
+    children: [
+      { 
+        title: "Directory", 
+        href: "/staff", 
+        icon: Users, 
+        roles: ["admin"] 
+      },
+        {
+            title: "Attendance",
+            href: "/staff/attendance",
+            icon: UserCheck,
+            roles: ["admin", "teacher"]
+        },
+        // leave, performance, 
+        {
+            title: "Performance",
+            href: "/staff/performance",
+            icon: ChartNoAxesGantt,
+            roles: ["admin", "teacher"]
+        },
+        {
+            title: "Leave",
+            href: "/staff/leave",
+            icon: Briefcase,
+            roles: ["admin", "teacher"]
+        }
+    ],
   },
-  { 
-    title: "Classes", 
-    href: "/academics/classes", 
-    icon: School, 
-    roles: ["admin", "teacher", "student"] 
-  },
-  { 
-    title: "Subjects", 
-    href: "/dashboard/subjects", 
-    icon: BookOpen, 
-    roles: ["admin", "teacher"] 
-  },
-  { 
-    title: "Attendance", 
-    href: "/dashboard/attendance", 
-    icon: UserCheck, 
-    roles: ["admin", "teacher", "student"] 
-  },
-  { 
-    title: "Grades", 
-    href: "/dashboard/grades", 
-    icon: BarChart3, 
-    roles: ["admin", "teacher", "student"] 
-  },
+  
   { 
     title: "Schedule", 
     href: "/dashboard/schedule", 
