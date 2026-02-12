@@ -45,9 +45,9 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard, roles: ["admin", "teacher", "student"] },
-  { title: "Students", href: "/dashboard/students", icon: GraduationCap, roles: ["admin", "teacher"] },
+  { title: "Students", href: "/students", icon: GraduationCap, roles: ["admin", "teacher"] },
   { title: "Teachers", href: "/dashboard/teachers", icon: Users, roles: ["admin"] },
-  { title: "Classes", href: "/dashboard/classes", icon: School, roles: ["admin", "teacher", "student"] },
+  { title: "Classes", href: "/academics/classes", icon: School, roles: ["admin", "teacher", "student"] },
   { title: "Subjects", href: "/dashboard/subjects", icon: BookOpen, roles: ["admin", "teacher"] },
   { title: "Attendance", href: "/dashboard/attendance", icon: UserCheck, roles: ["admin", "teacher", "student"] },
   { title: "Grades", href: "/dashboard/grades", icon: BarChart3, roles: ["admin", "teacher", "student"] },

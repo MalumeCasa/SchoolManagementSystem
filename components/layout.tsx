@@ -17,9 +17,13 @@ import {
   Menu,
   X,
   ChevronDown,
+  ChevronRight,
   School,
   UserCheck,
   BarChart3,
+  Home,
+  UserCog,
+  Briefcase,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -33,28 +37,9 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
-type UserRole = "admin" | "teacher" | "student";
+import { UserRole } from "@/components/navItem";
+import { NavItem, navItems } from "@/components/navItem";
 
-interface NavItem {
-  title: string;
-  href: string;
-  icon: React.ComponentType<{ className?: string }>;
-  roles: UserRole[];
-}
-
-const navItems: NavItem[] = [
-  { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard, roles: ["admin", "teacher", "student"] },
-  { title: "Students", href: "/dashboard/students", icon: GraduationCap, roles: ["admin", "teacher"] },
-  { title: "Teachers", href: "/dashboard/teachers", icon: Users, roles: ["admin"] },
-  { title: "Classes", href: "/dashboard/classes", icon: School, roles: ["admin", "teacher", "student"] },
-  { title: "Subjects", href: "/dashboard/subjects", icon: BookOpen, roles: ["admin", "teacher"] },
-  { title: "Attendance", href: "/dashboard/attendance", icon: UserCheck, roles: ["admin", "teacher", "student"] },
-  { title: "Grades", href: "/dashboard/grades", icon: BarChart3, roles: ["admin", "teacher", "student"] },
-  { title: "Schedule", href: "/dashboard/schedule", icon: Calendar, roles: ["admin", "teacher", "student"] },
-  { title: "Announcements", href: "/dashboard/announcements", icon: Bell, roles: ["admin", "teacher", "student"] },
-  { title: "Reports", href: "/dashboard/reports", icon: ClipboardList, roles: ["admin"] },
-  { title: "Settings", href: "/dashboard/settings", icon: Settings, roles: ["admin"] },
-];
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -69,8 +54,21 @@ interface LayoutProps {
 export function Layout({ children, user }: LayoutProps) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({
+    Dashboard: true,
+    Academics: true,
+  });
 
-  const filteredNavItems = navItems.filter((item) => item.roles.includes(user.role));
+  const toggleMenu = (title: string) => {
+    setOpenMenus(prev => ({
+      ...prev,
+      [title]: !prev[title]
+    }));
+  };
+
+  const filteredNavItems = navItems.filter((item) => 
+    item.roles.includes(user.role)
+  );
 
   const getInitials = (name: string) => {
     return name
@@ -86,6 +84,75 @@ export function Layout({ children, user }: LayoutProps) {
     window.location.href = "/login";
   };
 
+  const isActive = (href?: string) => {
+    if (!href) return false;
+    return pathname === href || pathname.startsWith(`${href}/`);
+  };
+
+ const renderNavItem = (item: NavItem, depth = 0) => {
+  const hasChildren = item.children && item.children.length > 0;
+  const isOpen = openMenus[item.title];
+  const paddingLeft = depth * 4;
+
+  if (hasChildren) {
+    return (
+      <div key={item.title} className="w-full">
+        <button
+          onClick={() => toggleMenu(item.title)}
+          className={cn(
+            "flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+            depth === 0 
+              ? "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+              : "text-sidebar-foreground/60 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground",
+            // Check if any child is active
+            item.children?.some(child => 
+              isActive(child.href) || 
+              child.children?.some(grandChild => isActive(grandChild.href))
+            ) && "bg-sidebar-accent text-sidebar-accent-foreground"
+          )}
+          style={{ paddingLeft: `${paddingLeft + 12}px` }}
+        >
+          <div className="flex items-center gap-3">
+            <item.icon className="h-5 w-5 shrink-0" />
+            <span>{item.title}</span>
+          </div>
+          {isOpen ? (
+            <ChevronDown className="h-4 w-4 shrink-0" />
+          ) : (
+            <ChevronRight className="h-4 w-4 shrink-0" />
+          )}
+        </button>
+        {isOpen && (
+          <div className="mt-1 space-y-0.5">
+            {item.children?.map((child) => renderNavItem(child, depth + 1))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <Link
+      key={item.href}
+      href={item.href || "#"}
+      onClick={() => setSidebarOpen(false)}
+      className={cn(
+        "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+        depth === 0
+          ? "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+          : depth === 1
+          ? "text-sidebar-foreground/60 hover:bg-sidebar-accent/30 hover:text-sidebar-foreground pl-11"
+          : "text-sidebar-foreground/50 hover:bg-sidebar-accent/20 hover:text-sidebar-foreground pl-16",
+        isActive(item.href) && "bg-sidebar-accent text-sidebar-accent-foreground"
+      )}
+      style={{ paddingLeft: `${paddingLeft + 12}px` }}
+    >
+      <item.icon className="h-5 w-5 shrink-0" />
+      <span className="truncate">{item.title}</span>
+    </Link>
+  );
+};
+
   const SidebarContent = () => (
     <div className="flex h-full flex-col justify-between">
       {/* Logo */}
@@ -94,32 +161,14 @@ export function Layout({ children, user }: LayoutProps) {
           <School className="h-5 w-5 text-sidebar-primary-foreground" />
         </div>
         <div className="flex flex-col">
-          <span className="text-sm font-semibold text-sidebar-foreground">EduManage</span>
+          <span className="text-sm font-semibold text-sidebar-foreground">KidsTown</span>
           <span className="text-xs text-sidebar-foreground/60">School Portal</span>
         </div>
       </div>
 
       {/* Navigation */}
-      <nav className="flex flex-col gap-1 p-4 overflow-y-auto flex-1">
-        {filteredNavItems.map((item) => {
-          const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={() => setSidebarOpen(false)}
-              className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-              )}
-            >
-              <item.icon className="h-5 w-5 shrink-0" />
-              {item.title}
-            </Link>
-          );
-        })}
+      <nav className="flex-1 space-y-0.5 overflow-y-auto p-3">
+        {filteredNavItems.map((item) => renderNavItem(item))}
       </nav>
 
       {/* User section */}
@@ -163,10 +212,9 @@ export function Layout({ children, user }: LayoutProps) {
   );
 
   return (
-    // 🔧 CHANGE 1: Added `h-screen overflow-hidden` to stop the whole page from scrolling
     <div className="flex h-screen overflow-hidden bg-background">
       {/* Desktop Sidebar */}
-      <aside className="hidden w-64 shrink-0 border-r border-border bg-sidebar lg:block overflow-y-auto">
+      <aside className="hidden w-64 shrink-0 border-r border-border bg-sidebar lg:block">
         <SidebarContent />
       </aside>
 
@@ -177,7 +225,7 @@ export function Layout({ children, user }: LayoutProps) {
         </SheetContent>
       </Sheet>
 
-      {/* 🔧 CHANGE 2: Main container now takes full height and manages its own scrolling */}
+      {/* Main Content */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Top Header */}
         <header className="sticky top-0 z-40 flex h-16 items-center gap-4 border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 lg:px-6">
@@ -188,9 +236,23 @@ export function Layout({ children, user }: LayoutProps) {
 
           <div className="flex flex-1 items-center justify-between">
             <h1 className="text-lg font-semibold lg:text-xl">
-              {filteredNavItems.find((item) => pathname === item.href || pathname.startsWith(item.href + "/"))?.title ||
-                "Dashboard"}
-            </h1>
+  {(() => {
+    for (const item of navItems) {
+      if (item.href && isActive(item.href)) return item.title;
+      if (item.children) {
+        for (const child of item.children) {
+          if (child.href && isActive(child.href)) return child.title;
+          if (child.children) {
+            for (const grandChild of child.children) {
+              if (grandChild.href && isActive(grandChild.href)) return grandChild.title;
+            }
+          }
+        }
+      }
+    }
+    return "Dashboard";
+  })()}
+</h1>
 
             <div className="flex items-center gap-2">
               <Button variant="ghost" size="icon" asChild>
@@ -203,7 +265,7 @@ export function Layout({ children, user }: LayoutProps) {
           </div>
         </header>
 
-        {/* 🔧 CHANGE 3: Page content is now the scrollable area */}
+        {/* Page Content */}
         <main className="flex-1 overflow-y-auto p-4 lg:p-6">{children}</main>
       </div>
     </div>
