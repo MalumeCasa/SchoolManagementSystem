@@ -12,7 +12,15 @@ export const metadata: Metadata = {
   title: "Students Page",
 };
 
-export default async function StudentDirectoryPage() {
+interface UserProps {
+  user: {
+    id: number
+    fullName: string
+    role: string
+  }
+}
+
+export default async function StudentDirectoryPage({ user }: UserProps) {
   const students = await getStudents();
 
   return (

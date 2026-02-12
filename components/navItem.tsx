@@ -59,7 +59,7 @@ export const navItems: NavItem[] = [
     children: [
       { 
         title: "Students", 
-        href: "/student/students", 
+        href: "/students", 
         icon: School, 
         roles: ["admin", "teacher", "student"] 
       },
