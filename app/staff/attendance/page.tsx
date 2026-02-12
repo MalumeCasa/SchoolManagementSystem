@@ -1,16 +1,14 @@
 import { redirect } from "next/navigation";
 import { requireAuth } from "@/lib/auth";
 import { Layout } from "@/components/layout";
-import AttendancePage from "./AttendancePage"; 
-
+import StaffAttendancePage from "@components/Management/Staff/StaffAttendance";
 
 export const metadata = {
-  title: "Staff - EduManage",
+  title: "Staff Attendance - EduManage",
   description: "School Management System Staff Attendance",
-
 };
 
-export default async function StaffPage() {
+export default async function StaffAttendancePageWrapper() {
   const user = await requireAuth();
 
   if (!user) {
@@ -19,7 +17,7 @@ export default async function StaffPage() {
 
   return (
     <Layout user={user}>
-      {user.role === "admin" || user.role === "teacher" ? <AttendancePage /> : null}
+      {user.role === "admin" || user.role === "teacher" ? <StaffAttendancePage user={user} /> : null}
       
     </Layout>
   );

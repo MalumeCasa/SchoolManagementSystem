@@ -28,7 +28,7 @@ const INITIAL_ATTENDANCE: AttendanceRecord[] = [
   { id: "8", staffId: "3", name: "Michael Brown", date: "2024-01-16", status: "present" },
 ]
 
-export default function Attendance() {
+export default function Attendance({ user }: { user: any }) {
   const [attendance, setAttendance] = useState<AttendanceRecord[]>(INITIAL_ATTENDANCE)
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0])
 

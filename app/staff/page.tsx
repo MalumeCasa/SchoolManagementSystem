@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { requireAuth } from "@/lib/auth";
 import { Layout } from "@/components/layout";
-import StaffDirectoryPage from "./staff/StaffDirectoryPage"; 
+import StaffDirectoryPage from "@components/Management/Staff/StaffDirectory"; 
 
 
 export const metadata = {
@@ -18,7 +18,7 @@ export default async function StaffPage() {
 
   return (
     <Layout user={user}>
-      {user.role === "admin" || user.role === "teacher" ? <StaffDirectoryPage /> : null}
+      {user.role === "admin" || user.role === "teacher" ? <StaffDirectoryPage user={user} /> : null}
       
     </Layout>
   );

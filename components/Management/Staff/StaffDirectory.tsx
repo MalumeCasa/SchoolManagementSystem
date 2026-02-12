@@ -34,7 +34,7 @@ const transformStaffData = (data: any[]): Staff[] => {
     }));
 };
 
-export default async function StaffDirectoryPage() {
+export default async function StaffDirectoryPage( { user }: { user: any }) {
     // Fetch staff data directly in the Server Component
     const staffResult = await getAllStaff();
     
