@@ -1,16 +1,25 @@
+// app/layout.tsx
 import React from "react"
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
+import { requireAuth } from "@/lib/auth"
+import { Layout } from "@/components/layout"
 import './globals.css'
 
-const _geist = Geist({ subsets: ["latin"] });
-const _geistMono = Geist_Mono({ subsets: ["latin"] });
+const geistSans = Geist({ 
+  subsets: ["latin"],
+  variable: '--font-geist-sans',
+})
+
+const geistMono = Geist_Mono({ 
+  subsets: ["latin"],
+  variable: '--font-geist-mono',
+})
 
 export const metadata: Metadata = {
   title: 'EduManager - School Management System',
   description: 'Complete school management solution for administrators, teachers, and students',
-  generator: 'v0.app',
   icons: {
     icon: [
       {
@@ -30,15 +39,46 @@ export const metadata: Metadata = {
   },
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  // Get user but don't redirect - let protected routes handle auth
+  const user = await requireAuth().catch(() => null)
+  
+  // If no user, render without layout (for login page etc)
+  if (!user) {
+    return (
+      <html lang="en" suppressHydrationWarning>
+        <body 
+          className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}
+          suppressHydrationWarning
+        >
+          {children}
+          <Analytics />
+        </body>
+      </html>
+    )
+  }
+
+  // Transform user to LayoutUser type (remove optional fields for layout)
+  const layoutUser = {
+    id: user.id,
+    fullName: user.fullName,
+    email: user.email,
+    role: user.role,
+  }
+
   return (
-    <html lang="en">
-      <body className={`font-sans antialiased`}>
-        {children}
+    <html lang="en" suppressHydrationWarning>
+      <body 
+        className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}
+        suppressHydrationWarning
+      >
+        <Layout user={layoutUser}>
+          {children}
+        </Layout>
         <Analytics />
       </body>
     </html>

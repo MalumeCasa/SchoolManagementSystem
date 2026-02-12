@@ -5,8 +5,8 @@ import Link from "next/link";
 import { ShowcaseSection } from "@/components/Layouts/showcase-section";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import type { Staff } from "@/api/db/types";
-import { deleteStaff } from "@/api/staff-actions"; // ← ADDED IMPORT
+import type { Staff } from "@/app/api/db/types";
+import { deleteStaff } from "@/app/api/staff-actions"; // ← ADDED IMPORT
 import { getStatusBadge } from './common';
 
 interface DisplayStaffPageProps {

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { GraduationCap, Users } from "lucide-react";
-import { ActiveView, ClassData, Student, Teacher, Subject } from '@/api/types';
+import { ActiveView, ClassData, Student, Teacher, Subject } from '@/app/api/types';
 import ClassViews from './ClassViews';
 
 interface ClassContentProps {

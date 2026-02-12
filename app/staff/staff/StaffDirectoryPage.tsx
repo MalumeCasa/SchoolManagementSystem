@@ -3,9 +3,9 @@ import React from "react";
 import type { Metadata } from "next";
 
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
-import { getAllStaff } from '@/api/staff-actions';
+import { getAllStaff } from '@/app/api/staff-actions';
 import { DisplayStaffPage } from '@components/Staff/displayStaff';
-import type { Staff } from '@/api/db/types';
+import type { Staff } from '@/app/api/db/types';
 
 export const metadata: Metadata = {
     title: "Staff Directory - School Management System",

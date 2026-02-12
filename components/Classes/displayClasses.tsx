@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ShowcaseSection } from "@/components/Layouts/showcase-section";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { deleteClass, exportClasses } from "@/api/class-actions";
+import { deleteClass, exportClasses } from "@/app/api/class-actions";
 
 interface ExportButtonsProps {
   classes: any[];

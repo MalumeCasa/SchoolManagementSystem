@@ -1,7 +1,7 @@
 // app/actions/attendance-actions.ts
 'use server';
 
-import { db } from '@/api/db';
+import { db } from '@/app/api/db';
 import {
   studentAttendance,
   classes,

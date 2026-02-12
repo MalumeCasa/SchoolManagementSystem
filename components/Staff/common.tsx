@@ -1,4 +1,4 @@
-import type { Staff } from "@/api/db/staff-type";
+import type { Staff } from "@/app/api/db/staff-type";
 
 export const transformStaffData = (data: any[]): Staff[] => {
     if (!Array.isArray(data)) {

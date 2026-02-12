@@ -1,7 +1,7 @@
 // app/parent-actions.ts
 'use server'
 
-import { db } from '@/api/db';
+import { db } from '@/app/api/db';
 import { parents, parentStudentRelations, students } from '@lib/db/schema';
 import { eq, and, or, ilike, inArray } from 'drizzle-orm';
 import { sql } from 'drizzle-orm'; // Add this import
