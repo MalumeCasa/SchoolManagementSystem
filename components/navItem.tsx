@@ -71,9 +71,9 @@ export const navItems: NavItem[] = [
       },
       { 
         title: "Attendance", 
-        href: "/student/attendance", 
+        href: "/attendance", 
         icon: ClipboardList, 
-        roles: ["admin", "teacher"] 
+        roles: ["admin", "teacher", "student"] 
       },
     ],
   },
