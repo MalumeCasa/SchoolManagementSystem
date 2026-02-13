@@ -92,7 +92,13 @@ export const navItems: NavItem[] = [
         title: "Subjects", 
         href: "/academics/subjects", 
         icon: BookOpen, 
-        roles: ["admin", "teacher"] 
+        roles: ["admin", "teacher", "student"] 
+      },
+      { 
+        title: "Timetable", 
+        href: "/academics/calendar", 
+        icon: Calendar, 
+        roles: ["admin", "teacher", "student"] 
       },
       { 
         title: "Curriculum", 

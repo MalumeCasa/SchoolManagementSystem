@@ -1,14 +1,14 @@
 import { redirect } from "next/navigation";
 import { requireAuth } from "@/lib/auth";
 import { Layout } from "@/components/layout";
-import ClassPage from "../../../components/Academics/Classes/ClassesPage"; // adjust path
+import CalendarPage from "@/components/Academics/Calendar/Admin-Calendar";
 
 export const metadata = {
-  title: "Classes - EduManage",
-  description: "School Management System Class Directory",
+  title: "TimeTable - EduManage",
+  description: "School Management System TimeTable",
 };
 
-export default async function ClassesPage() {
+export default async function StudentsPage() {
   const user = await requireAuth();
 
   if (!user) {
@@ -17,7 +17,7 @@ export default async function ClassesPage() {
 
   return (
     <Layout user={user}>
-      {user.role === "admin" || user.role === "teacher" ? <ClassPage /> : null}
+      {user.role === "admin" || user.role === "teacher" || user.role === "student" ? <CalendarPage user={user} /> : null}
       {/* Add other role dashboards here if needed */}
       
     </Layout>
