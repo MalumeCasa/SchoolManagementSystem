@@ -20,6 +20,8 @@ import {
   ChartNoAxesGantt,
   UserCog,
   Briefcase,
+  NotebookPen,
+  NotebookIcon,
 } from "lucide-react";
 
 export type UserRole = "admin" | "teacher" | "student";
@@ -98,6 +100,18 @@ export const navItems: NavItem[] = [
         title: "Timetable", 
         href: "/academics/calendar", 
         icon: Calendar, 
+        roles: ["admin", "teacher", "student"] 
+      },
+      { 
+        title: "Exams", 
+        href: "/academics/exams", 
+        icon: NotebookPen, 
+        roles: ["admin", "teacher", "student"] 
+      },
+      { 
+        title: "Assignments", 
+        href: "/academics/assignments", 
+        icon: NotebookIcon, 
         roles: ["admin", "teacher", "student"] 
       },
       { 
