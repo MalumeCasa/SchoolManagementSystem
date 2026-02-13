@@ -65,7 +65,7 @@ export const navItems: NavItem[] = [
       },
       { 
         title: "Fees", 
-        href: "/student/fees", 
+        href: "/students/fees", 
         icon: DollarSign, 
         roles: ["admin", "teacher"] 
       },
