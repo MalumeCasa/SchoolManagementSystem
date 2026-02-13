@@ -5,7 +5,7 @@ import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import { ShowcaseSection } from "@/components/Layouts/showcase-section";
 import ClassSidebar from "@components/Classes/ClassSidebar";
 import ClassContent from "@components/Classes/ClassContent";
-import { ClassSection, ActiveView, EditingClass, Student, Teacher, Subject, ClassData } from "@/api/types";
+import { ClassSection, ActiveView, EditingClass, Student, Teacher, Subject, ClassData } from "@api/types";
 import { transformStudentData, findMatchingClass, fallbackStudentsData } from '@components/Classes/studentUtils';
 
 import { 
@@ -13,7 +13,7 @@ import {
   getAllClasses, 
   getAllTeachers, 
   getAllSubjects 
-} from '@/api/actions';
+} from '@api/actions';
 
 // Add useRouter import
 import { useRouter } from 'next/navigation';
