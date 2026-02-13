@@ -8,7 +8,7 @@ export const metadata = {
     description: "School Management System Mark Attendance Page",
 }
 
-export default async function DashboardPage() {
+export default async function MarkAttendancePage() {
     const user = await requireAuth()
 
     if (!user) {
