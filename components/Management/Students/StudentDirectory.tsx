@@ -33,7 +33,7 @@ export default async function StudentDirectoryPage({ user }: UserProps) {
             <h2>Students</h2>
 
             <Link
-              href="/dashboard/users/students/new/"
+              href="/register/new/student/"
               className="flex w-full justify-center rounded-lg bg-primary p-[13px] font-medium text-white hover:bg-opacity-90"
             >
               Register Student
