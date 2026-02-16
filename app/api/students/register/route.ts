@@ -17,6 +17,7 @@ export async function POST(request: Request) {
       guardianName,
       guardianPhone,
       guardianEmail,
+      gradeLevel
     } = body
 
     // Validate required fields
@@ -58,6 +59,7 @@ export async function POST(request: Request) {
       guardian_name: guardianName,
       guardian_phone: guardianPhone,
       guardian_email: guardianEmail,
+      grade_level: gradeLevel,
     })
 
     return NextResponse.json({

@@ -115,34 +115,6 @@ export const assignmentSubmissions = pgTable("assignment_submissions", {
 	unique("unique_assignment_submission").on(table.assignmentId, table.studentId),
 ]);
 
-export const attendanceSummary = pgTable("attendance_summary", {
-	id: serial().primaryKey().notNull(),
-	studentId: integer("student_id").notNull(),
-	classId: integer("class_id").notNull(),
-	month: integer().notNull(),
-	year: integer().notNull(),
-	presentDays: integer().default(0),
-	absentDays: integer().default(0),
-	lateDays: integer().default(0),
-	halfDays: integer().default(0),
-	totalSchoolDays: integer().default(0),
-}, (table) => [
-	index("idx_attendance_summary_month").using("btree", table.month.asc().nullsLast().op("int4_ops"), table.year.asc().nullsLast().op("int4_ops")),
-	index("idx_attendance_summary_student").using("btree", table.studentId.asc().nullsLast().op("int4_ops")),
-	index("idx_attendance_summary_student_month").using("btree", table.studentId.asc().nullsLast().op("int4_ops"), table.month.asc().nullsLast().op("int4_ops"), table.year.asc().nullsLast().op("int4_ops")),
-	foreignKey({
-			columns: [table.studentId],
-			foreignColumns: [students.id],
-			name: "attendance_summary_student_id_students_id_fk"
-		}),
-	foreignKey({
-			columns: [table.classId],
-			foreignColumns: [classes.id],
-			name: "attendance_summary_class_id_classes_id_fk"
-		}),
-	unique("unique_attendance_summary").on(table.studentId, table.month, table.year),
-]);
-
 export const chatRoomMembers = pgTable("chat_room_members", {
 	id: serial().primaryKey().notNull(),
 	roomId: integer("room_id").notNull(),
@@ -651,72 +623,6 @@ export const termConfig = pgTable("term_config", {
 	unique("unique_term_config").on(table.academicYear, table.term),
 ]);
 
-export const notifications = pgTable("notifications", {
-	id: serial().primaryKey().notNull(),
-	userId: integer("user_id").notNull(),
-	title: text().notNull(),
-	message: text().notNull(),
-	type: varchar({ length: 50 }).notNull(),
-	relatedId: integer("related_id"),
-	relatedType: varchar("related_type", { length: 50 }),
-	isRead: boolean("is_read").default(false),
-	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
-}, (table) => [
-	index("idx_notifications_read").using("btree", table.isRead.asc().nullsLast().op("bool_ops")),
-	index("idx_notifications_user").using("btree", table.userId.asc().nullsLast().op("int4_ops")),
-	foreignKey({
-			columns: [table.userId],
-			foreignColumns: [users.id],
-			name: "notifications_user_id_users_id_fk"
-		}),
-]);
-
-export const userSessions = pgTable("user_sessions", {
-	id: serial().primaryKey().notNull(),
-	userId: integer("user_id").notNull(),
-	token: text().notNull(),
-	expiresAt: timestamp("expires_at", { mode: 'string' }).notNull(),
-	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
-}, (table) => [
-	index("idx_user_sessions_token").using("btree", table.token.asc().nullsLast().op("text_ops")),
-	index("idx_user_sessions_user").using("btree", table.userId.asc().nullsLast().op("int4_ops")),
-	foreignKey({
-			columns: [table.userId],
-			foreignColumns: [users.id],
-			name: "user_sessions_user_id_users_id_fk"
-		}),
-]);
-
-export const users = pgTable("users", {
-	id: serial().primaryKey().notNull(),
-	email: varchar({ length: 255 }).notNull(),
-	passwordHash: varchar("password_hash", { length: 255 }).notNull(),
-	fullName: varchar("full_name", { length: 255 }).notNull(),
-	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
-	updatedAt: timestamp("updated_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
-	role: varchar({ length: 50 }).default('user').notNull(),
-	studentId: varchar("student_id", { length: 50 }),
-	teacherId: varchar("teacher_id", { length: 50 }),
-	phone: varchar({ length: 20 }),
-	address: text(),
-	dateOfBirth: date("date_of_birth"),
-	gender: varchar({ length: 20 }),
-	profileImageUrl: text("profile_image_url"),
-	idDocumentUrl: text("id_document_url"),
-	idNumber: varchar("id_number", { length: 100 }),
-	guardianName: varchar("guardian_name", { length: 255 }),
-	guardianPhone: varchar("guardian_phone", { length: 20 }),
-	guardianEmail: varchar("guardian_email", { length: 255 }),
-	enrollmentDate: date("enrollment_date").default(sql`CURRENT_DATE`),
-	status: varchar({ length: 50 }).default('active'),
-}, (table) => [
-	index("idx_users_email").using("btree", table.email.asc().nullsLast().op("text_ops")),
-	index("idx_users_role").using("btree", table.role.asc().nullsLast().op("text_ops")),
-	index("idx_users_student_id").using("btree", table.studentId.asc().nullsLast().op("text_ops")),
-	unique("users_email_key").on(table.email),
-	check("check_user_role", sql`(role)::text = ANY ((ARRAY['student'::character varying, 'teacher'::character varying, 'admin'::character varying, 'parent'::character varying, 'moderator'::character varying, 'user'::character varying])::text[])`),
-]);
-
 export const curriculum = pgTable("curriculum", {
 	id: serial().primaryKey().notNull(),
 	classId: integer("class_id").notNull(),
@@ -742,6 +648,37 @@ export const curriculum = pgTable("curriculum", {
 			name: "curriculum_subject_id_subjects_id_fk"
 		}),
 	unique("unique_curriculum_class_subject_year").on(table.classId, table.subjectId, table.academicYear),
+]);
+
+export const users = pgTable("users", {
+	id: serial().primaryKey().notNull(),
+	email: varchar({ length: 255 }).notNull(),
+	passwordHash: varchar("password_hash", { length: 255 }).notNull(),
+	role: varchar({ length: 50 }).default('user').notNull(),
+	phone: varchar({ length: 20 }),
+	status: varchar({ length: 50 }).default('active'),
+	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
+	fullName: varchar("full_name", { length: 255 }).notNull(),
+	address: text(),
+	dateOfBirth: date("date_of_birth"),
+	gender: varchar({ length: 20 }),
+	profileImageUrl: text("profile_image_url"),
+	idDocumentUrl: text("id_document_url"),
+	idNumber: varchar("id_number", { length: 100 }),
+	enrollmentDate: date("enrollment_date").default(sql`CURRENT_DATE`),
+	guardianName: varchar("guardian_name", { length: 255 }),
+	guardianPhone: varchar("guardian_phone", { length: 20 }),
+	guardianEmail: varchar("guardian_email", { length: 255 }),
+	studentId: varchar("student_id", { length: 50 }),
+	teacherId: varchar("teacher_id", { length: 50 }),
+	gradeLevel: text("grade_level"),
+}, (table) => [
+	index("idx_users_email").using("btree", table.email.asc().nullsLast().op("text_ops")),
+	index("idx_users_role").using("btree", table.role.asc().nullsLast().op("text_ops")),
+	index("idx_users_student_id").using("btree", table.studentId.asc().nullsLast().op("text_ops")),
+	unique("users_email_key").on(table.email),
+	check("check_user_role", sql`(role)::text = ANY (ARRAY[('student'::character varying)::text, ('teacher'::character varying)::text, ('admin'::character varying)::text, ('parent'::character varying)::text, ('moderator'::character varying)::text, ('user'::character varying)::text])`),
 ]);
 
 export const examResults = pgTable("exam_results", {
@@ -1234,6 +1171,74 @@ export const studentCurriculumProgress = pgTable("student_curriculum_progress", 
 			name: "student_curriculum_progress_curriculum_id_curriculum_id_fk"
 		}),
 	unique("unique_student_curriculum_progress").on(table.studentId, table.curriculumId),
+]);
+
+export const notifications = pgTable("notifications", {
+	id: serial().primaryKey().notNull(),
+	userId: integer("user_id").notNull(),
+	title: text().notNull(),
+	message: text().notNull(),
+	type: varchar({ length: 50 }).notNull(),
+	relatedId: integer("related_id"),
+	relatedType: varchar("related_type", { length: 50 }),
+	isRead: boolean("is_read").default(false),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
+}, (table) => [
+	index("idx_notifications_read").using("btree", table.isRead.asc().nullsLast().op("bool_ops")),
+	index("idx_notifications_user").using("btree", table.userId.asc().nullsLast().op("int4_ops")),
+	foreignKey({
+			columns: [table.userId],
+			foreignColumns: [users.id],
+			name: "notifications_user_id_users_id_fk"
+		}),
+]);
+
+export const userSessions = pgTable("user_sessions", {
+	id: serial().primaryKey().notNull(),
+	userId: integer("user_id").notNull(),
+	token: text().notNull(),
+	expiresAt: timestamp("expires_at", { mode: 'string' }).notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
+}, (table) => [
+	index("idx_user_sessions_token").using("btree", table.token.asc().nullsLast().op("text_ops")),
+	index("idx_user_sessions_user").using("btree", table.userId.asc().nullsLast().op("int4_ops")),
+	foreignKey({
+			columns: [table.userId],
+			foreignColumns: [users.id],
+			name: "user_sessions_user_id_users_id_fk"
+		}),
+]);
+
+export const attendanceSummary = pgTable("attendance_summary", {
+	id: serial().primaryKey().notNull(),
+	studentId: integer("student_id").notNull(),
+	classId: integer("class_id").notNull(),
+	month: integer().notNull(),
+	year: integer().notNull(),
+	presentDays: integer().default(0),
+	absentDays: integer().default(0),
+	lateDays: integer().default(0),
+	halfDays: integer().default(0),
+	totalSchoolDays: integer().default(0),
+	presentDays: integer("present_days").default(0),
+	absentDays: integer("absent_days").default(0),
+	lateDays: integer("late_days").default(0),
+	totalSchoolDays: integer("total_school_days").default(0),
+}, (table) => [
+	index("idx_attendance_summary_month").using("btree", table.month.asc().nullsLast().op("int4_ops"), table.year.asc().nullsLast().op("int4_ops")),
+	index("idx_attendance_summary_student").using("btree", table.studentId.asc().nullsLast().op("int4_ops")),
+	index("idx_attendance_summary_student_month").using("btree", table.studentId.asc().nullsLast().op("int4_ops"), table.month.asc().nullsLast().op("int4_ops"), table.year.asc().nullsLast().op("int4_ops")),
+	foreignKey({
+			columns: [table.studentId],
+			foreignColumns: [students.id],
+			name: "attendance_summary_student_id_students_id_fk"
+		}),
+	foreignKey({
+			columns: [table.classId],
+			foreignColumns: [classes.id],
+			name: "attendance_summary_class_id_classes_id_fk"
+		}),
+	unique("unique_attendance_summary").on(table.studentId, table.month, table.year),
 ]);
 export const dailyAttendanceView = pgView("daily_attendance_view", {	date: date(),
 	classId: integer("class_id"),

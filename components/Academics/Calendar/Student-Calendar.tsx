@@ -11,7 +11,7 @@ export const metadata: Metadata = {
     description: "View all class schedules and events",
 };
 
-export default async function AdminCalendarPage({ user }: { user: any }) {
+export default async function StudentCalendarPage({ user }: { user: any }) {
     const subjectsResult = await getAllSubjects();
     const subjects = subjectsResult?.success ? subjectsResult.data.map(subject => ({
         ...subject,

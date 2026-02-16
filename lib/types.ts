@@ -23,6 +23,7 @@ export type User = {
   status: string
   created_at: string
   updated_at?: string
+  grade_level?: string
 }
 
 export type Class = {
