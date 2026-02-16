@@ -6,7 +6,7 @@ import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import { ShowcaseSection } from "@/components/Layouts/showcase-section";
 
 import { getStudents } from "@api/student-actions";
-import { DisplayStudentsPage } from "@components/Students/displayStudents";
+import { DisplayStudentsPage } from "@/components/Management/Students/displayStudents";
 
 export const metadata: Metadata = {
   title: "Students Page",

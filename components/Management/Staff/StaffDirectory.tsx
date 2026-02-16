@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import { getAllStaff } from '@api/staff-actions';
-import { DisplayStaffPage } from '@components/Staff/displayStaff';
+import { DisplayStaffPage } from '@/components/Management/Staff/displayStaff';
 import type { Staff } from '@api/db/types';
 
 export const metadata: Metadata = {
