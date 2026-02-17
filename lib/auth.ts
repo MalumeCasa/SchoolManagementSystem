@@ -1,5 +1,8 @@
+'use server'
+
 import bcrypt from "bcryptjs"
 import { cookies } from "next/headers"
+import { redirect } from "next/navigation"
 import { getUserByEmail, getUserById } from "./db"
 import { UserRole } from "./types"
 
@@ -49,17 +52,13 @@ export async function destroySession() {
   cookieStore.delete("session")
 }
 
-export async function requireAuth() {
+// Pure function to get current user without side effects
+export async function getCurrentUser() {
   const session = await getSession()
-  if (!session) {
-    return null
-  }
+  if (!session) return null
 
   const user = await getUserById(session.userId)
-  if (!user) {
-    await destroySession()
-    return null
-  }
+  if (!user) return null // Don't delete the cookie here, just return null
 
   return {
     id: user.id,
@@ -73,16 +72,29 @@ export async function requireAuth() {
   }
 }
 
-// Alias for getCurrentUser - used by many components
-export async function getCurrentUser() {
-  return requireAuth()
+// For protected pages - redirects if not authenticated
+export async function requireAuth() {
+  const user = await getCurrentUser()
+  
+  if (!user) {
+    redirect("/login")
+  }
+  
+  return user
 }
 
+// For role-based protection - redirects if not authorized
 export async function requireRole(allowedRoles: UserRole[]) {
-  const user = await requireAuth()
-  if (!user || !allowedRoles.includes(user.role)) {
-    return null
+  const user = await getCurrentUser()
+  
+  if (!user) {
+    redirect("/login")
   }
+  
+  if (!allowedRoles.includes(user.role)) {
+    redirect("/unauthorized")
+  }
+  
   return user
 }
 
@@ -98,7 +110,21 @@ export async function requireStudent() {
   return requireRole(["admin", "teacher", "student"])
 }
 
-export function getRoleDashboardPath(role: UserRole): string {
+// Server Action to clean up invalid sessions (call this from client components when needed)
+export async function cleanupInvalidSession() {
+  'use server'
+  
+  const session = await getSession()
+  if (session) {
+    const user = await getUserById(session.userId)
+    if (!user) {
+      await destroySession()
+    }
+  }
+}
+
+// Utility functions (these don't need to be async, but since file has 'use server', they must be)
+export async function getRoleDashboardPath(role: UserRole): Promise<string> {
   switch (role) {
     case "admin":
       return "/dashboard/admin"
@@ -111,7 +137,7 @@ export function getRoleDashboardPath(role: UserRole): string {
   }
 }
 
-export function getRoleLabel(role: UserRole): string {
+export async function getRoleLabel(role: UserRole): Promise<string> {
   switch (role) {
     case "admin":
       return "Administrator"
