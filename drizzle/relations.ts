@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm/relations";
-import { staff, teachers, registeredStudents, students, studentMedicalInfo, parents, parentStudentRelations, academicYears, academicTerms, teacherClasses, classes, subjects, subjectClasses, subjectTeachers, classPeriods, curriculum, curriculumChapters, curriculumTopics, curriculumProgress, studentCurriculumProgress, assignments, grades, exams, assignmentSubmissions, examResults, feeStructure, studentFees, staffLeave, feePayments, feeDiscounts, studentAttendance, attendanceSummary, staffAttendance, staffSalary, reportCards, events, reportCardSubjects, chatRooms, chatRoomMembers, users, userSessions, chatMessages, notifications, notices } from "./schema";
+import { staff, teachers, students, studentMedicalInfo, parents, parentStudentRelations, academicYears, academicTerms, registeredStudents, teacherClasses, classes, subjects, subjectClasses, subjectTeachers, classPeriods, curriculum, curriculumChapters, curriculumTopics, curriculumProgress, studentCurriculumProgress, assignments, grades, exams, assignmentSubmissions, examResults, feeStructure, studentFees, staffLeave, feePayments, feeDiscounts, studentAttendance, attendanceSummary, staffAttendance, staffSalary, events, reportCards, chatRooms, chatRoomMembers, users, userSessions, chatMessages, notifications, notices, reportCardSubjects, studentMigrationLog } from "./schema";
 
 export const teachersRelations = relations(teachers, ({one, many}) => ({
 	staff: one(staff, {
@@ -25,19 +25,26 @@ export const staffRelations = relations(staff, ({many}) => ({
 	studentAttendances: many(studentAttendance),
 	staffAttendances: many(staffAttendance),
 	staffSalaries: many(staffSalary),
-	reportCards: many(reportCards),
 	events: many(events),
+	reportCards: many(reportCards),
 	chatRooms: many(chatRooms),
 	notices: many(notices),
 }));
 
+export const studentMedicalInfoRelations = relations(studentMedicalInfo, ({one}) => ({
+	student: one(students, {
+		fields: [studentMedicalInfo.id],
+		references: [students.id]
+	}),
+}));
+
 export const studentsRelations = relations(students, ({one, many}) => ({
+	studentMedicalInfos: many(studentMedicalInfo),
+	parentStudentRelations: many(parentStudentRelations),
 	registeredStudent: one(registeredStudents, {
 		fields: [students.registeredStudentId],
 		references: [registeredStudents.id]
 	}),
-	studentMedicalInfos: many(studentMedicalInfo),
-	parentStudentRelations: many(parentStudentRelations),
 	studentCurriculumProgresses: many(studentCurriculumProgress),
 	grades: many(grades),
 	assignmentSubmissions: many(assignmentSubmissions),
@@ -47,17 +54,6 @@ export const studentsRelations = relations(students, ({one, many}) => ({
 	studentAttendances: many(studentAttendance),
 	attendanceSummaries: many(attendanceSummary),
 	reportCards: many(reportCards),
-}));
-
-export const registeredStudentsRelations = relations(registeredStudents, ({many}) => ({
-	students: many(students),
-}));
-
-export const studentMedicalInfoRelations = relations(studentMedicalInfo, ({one}) => ({
-	student: one(students, {
-		fields: [studentMedicalInfo.id],
-		references: [students.id]
-	}),
 }));
 
 export const parentStudentRelationsRelations = relations(parentStudentRelations, ({one}) => ({
@@ -88,6 +84,11 @@ export const academicYearsRelations = relations(academicYears, ({many}) => ({
 	reportCards: many(reportCards),
 }));
 
+export const registeredStudentsRelations = relations(registeredStudents, ({many}) => ({
+	students: many(students),
+	studentMigrationLogs: many(studentMigrationLog),
+}));
+
 export const teacherClassesRelations = relations(teacherClasses, ({one}) => ({
 	teacher: one(teachers, {
 		fields: [teacherClasses.teacherId],
@@ -110,8 +111,8 @@ export const classesRelations = relations(classes, ({many}) => ({
 	feeStructures: many(feeStructure),
 	studentAttendances: many(studentAttendance),
 	attendanceSummaries: many(attendanceSummary),
-	reportCards: many(reportCards),
 	events: many(events),
+	reportCards: many(reportCards),
 	chatRooms: many(chatRooms),
 }));
 
@@ -380,6 +381,17 @@ export const staffSalaryRelations = relations(staffSalary, ({one}) => ({
 	}),
 }));
 
+export const eventsRelations = relations(events, ({one}) => ({
+	class: one(classes, {
+		fields: [events.classId],
+		references: [classes.id]
+	}),
+	staff: one(staff, {
+		fields: [events.createdBy],
+		references: [staff.id]
+	}),
+}));
+
 export const reportCardsRelations = relations(reportCards, ({one, many}) => ({
 	student: one(students, {
 		fields: [reportCards.studentId],
@@ -402,28 +414,6 @@ export const reportCardsRelations = relations(reportCards, ({one, many}) => ({
 		references: [staff.id]
 	}),
 	reportCardSubjects: many(reportCardSubjects),
-}));
-
-export const eventsRelations = relations(events, ({one}) => ({
-	class: one(classes, {
-		fields: [events.classId],
-		references: [classes.id]
-	}),
-	staff: one(staff, {
-		fields: [events.createdBy],
-		references: [staff.id]
-	}),
-}));
-
-export const reportCardSubjectsRelations = relations(reportCardSubjects, ({one}) => ({
-	reportCard: one(reportCards, {
-		fields: [reportCardSubjects.reportCardId],
-		references: [reportCards.id]
-	}),
-	subject: one(subjects, {
-		fields: [reportCardSubjects.subjectId],
-		references: [subjects.id]
-	}),
 }));
 
 export const chatRoomsRelations = relations(chatRooms, ({one, many}) => ({
@@ -476,5 +466,23 @@ export const noticesRelations = relations(notices, ({one}) => ({
 	staff: one(staff, {
 		fields: [notices.createdBy],
 		references: [staff.id]
+	}),
+}));
+
+export const reportCardSubjectsRelations = relations(reportCardSubjects, ({one}) => ({
+	reportCard: one(reportCards, {
+		fields: [reportCardSubjects.reportCardId],
+		references: [reportCards.id]
+	}),
+	subject: one(subjects, {
+		fields: [reportCardSubjects.subjectId],
+		references: [subjects.id]
+	}),
+}));
+
+export const studentMigrationLogRelations = relations(studentMigrationLog, ({one}) => ({
+	registeredStudent: one(registeredStudents, {
+		fields: [studentMigrationLog.registeredStudentId],
+		references: [registeredStudents.id]
 	}),
 }));

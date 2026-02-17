@@ -1,4 +1,4 @@
-import { pgTable, index, unique, check, serial, text, timestamp, numeric, boolean, varchar, date, integer, jsonb, foreignKey, time, pgView, bigint, pgEnum } from "drizzle-orm/pg-core"
+import { pgTable, index, unique, check, serial, text, timestamp, numeric, boolean, date, varchar, integer, jsonb, foreignKey, time, pgView, bigint, pgEnum } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 
 export const assignmentStatus = pgEnum("assignment_status", ['draft', 'published', 'closed', 'archived'])
@@ -34,6 +34,18 @@ export const reportCardComments = pgTable("report_card_comments", {
 	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
 });
 
+export const academicYears = pgTable("academic_years", {
+	id: serial().primaryKey().notNull(),
+	name: text().notNull(),
+	startDate: date("start_date").notNull(),
+	endDate: date("end_date").notNull(),
+	isCurrent: boolean("is_current").default(false),
+	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+	unique("unique_academic_year_name").on(table.name),
+	check("check_dates", sql`start_date <= end_date`),
+]);
+
 export const feeCategories = pgTable("fee_categories", {
 	id: serial().primaryKey().notNull(),
 	name: text().notNull(),
@@ -54,18 +66,6 @@ export const gradeSystem = pgTable("grade_system", {
 }, (table) => [
 	unique("unique_grade_range").on(table.minMarks, table.maxMarks),
 	check("check_range", sql`min_marks <= max_marks`),
-]);
-
-export const academicYears = pgTable("academic_years", {
-	id: serial().primaryKey().notNull(),
-	name: text().notNull(),
-	startDate: date("start_date").notNull(),
-	endDate: date("end_date").notNull(),
-	isCurrent: boolean("is_current").default(false),
-	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
-}, (table) => [
-	unique("unique_academic_year_name").on(table.name),
-	check("check_dates", sql`start_date <= end_date`),
 ]);
 
 export const staff = pgTable("staff", {
@@ -153,6 +153,117 @@ export const users = pgTable("users", {
 }, (table) => [
 	unique("users_email_key").on(table.email),
 	check("check_user_role", sql`(role)::text = ANY (ARRAY['student'::text, 'teacher'::text, 'admin'::text, 'parent'::text, 'moderator'::text, 'user'::text])`),
+]);
+
+export const studentMedicalInfo = pgTable("student_medical_info", {
+	id: integer().primaryKey().notNull(),
+	studentId: text("student_id").notNull(),
+	familyDoctor: text("family_doctor"),
+	doctorPhone: text("doctor_phone"),
+	medicalConditions: text("medical_conditions").array(),
+	medicalConditionsDetails: text("medical_conditions_details"),
+	childhoodSicknesses: text("childhood_sicknesses"),
+	lifeThreateningAllergies: text("life_threatening_allergies"),
+	otherAllergies: text("other_allergies"),
+	regularMedications: boolean("regular_medications"),
+	regularMedicationsDetails: text("regular_medications_details"),
+	majorOperations: text("major_operations"),
+	behaviorProblems: text("behavior_problems"),
+	speechHearingProblems: text("speech_hearing_problems"),
+	birthComplications: text("birth_complications"),
+	immunisationUpToDate: boolean("immunisation_up_to_date"),
+	familyMedicalHistory: text("family_medical_history"),
+	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+	index("idx_student_medical_id_number").using("btree", table.studentId.asc().nullsLast().op("text_ops")),
+	foreignKey({
+			columns: [table.id],
+			foreignColumns: [students.id],
+			name: "student_medical_info_id_fkey"
+		}).onDelete("cascade"),
+]);
+
+export const parents = pgTable("parents", {
+	id: serial().primaryKey().notNull(),
+	title: text(),
+	name: text().notNull(),
+	surname: text().notNull(),
+	idNumber: text("id_number"),
+	dateOfBirth: text("date_of_birth"),
+	gender: text(),
+	email: text(),
+	phone: text().notNull(),
+	alternatePhone: text("alternate_phone"),
+	homeAddress: text("home_address"),
+	postalAddress: text("postal_address"),
+	workAddress: text("work_address"),
+	occupation: text(),
+	employer: text(),
+	workPhone: text("work_phone"),
+	relationshipToStudent: text("relationship_to_student").notNull(),
+	isPrimaryContact: boolean("is_primary_contact").default(false),
+	emergencyContact: boolean("emergency_contact").default(false),
+	authorizedToPickup: boolean("authorized_to_pickup").default(true),
+	responsibleForFees: boolean("responsible_for_fees").default(false),
+	feePaymentMethod: text("fee_payment_method"),
+	bankAccountDetails: jsonb("bank_account_details"),
+	medicalConsent: boolean("medical_consent").default(false),
+	status: text().default('active'),
+	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+	index("idx_parents_email").using("btree", table.email.asc().nullsLast().op("text_ops")),
+	index("idx_parents_phone").using("btree", table.phone.asc().nullsLast().op("text_ops")),
+	index("idx_parents_status").using("btree", table.status.asc().nullsLast().op("text_ops")),
+	index("idx_parents_surname").using("btree", table.surname.asc().nullsLast().op("text_ops")),
+	unique("parents_id_number_key").on(table.idNumber),
+	check("parents_name_not_empty", sql`(name IS NOT NULL) AND (name <> ''::text)`),
+	check("parents_surname_not_empty", sql`(surname IS NOT NULL) AND (surname <> ''::text)`),
+]);
+
+export const parentStudentRelations = pgTable("parent_student_relations", {
+	id: serial().primaryKey().notNull(),
+	parentId: integer("parent_id").notNull(),
+	studentId: integer("student_id").notNull(),
+	relationship: text().notNull(),
+	isPrimaryContact: boolean("is_primary_contact").default(false),
+	emergencyContact: boolean("emergency_contact").default(false),
+	authorizedToPickup: boolean("authorized_to_pickup").default(true),
+	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+	index("idx_parent_student_relations_parent").using("btree", table.parentId.asc().nullsLast().op("int4_ops")),
+	index("idx_parent_student_relations_student").using("btree", table.studentId.asc().nullsLast().op("int4_ops")),
+	foreignKey({
+			columns: [table.parentId],
+			foreignColumns: [parents.id],
+			name: "parent_student_relations_parent_id_fkey"
+		}).onDelete("cascade"),
+	foreignKey({
+			columns: [table.studentId],
+			foreignColumns: [students.id],
+			name: "parent_student_relations_student_id_fkey"
+		}).onDelete("cascade"),
+	unique("unique_parent_student_relation").on(table.parentId, table.studentId),
+]);
+
+export const academicTerms = pgTable("academic_terms", {
+	id: serial().primaryKey().notNull(),
+	academicYearId: integer("academic_year_id").notNull(),
+	name: text().notNull(),
+	termOrder: integer("term_order").notNull(),
+	startDate: date("start_date").notNull(),
+	endDate: date("end_date").notNull(),
+	isCurrent: boolean("is_current").default(false),
+	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+	foreignKey({
+			columns: [table.academicYearId],
+			foreignColumns: [academicYears.id],
+			name: "academic_terms_academic_year_id_fkey"
+		}).onDelete("cascade"),
+	unique("unique_term_name_year").on(table.academicYearId, table.name),
+	check("check_term_dates", sql`start_date <= end_date`),
 ]);
 
 export const registeredStudents = pgTable("registered_students", {
@@ -295,7 +406,10 @@ export const registeredStudents = pgTable("registered_students", {
 	status: text().default('pending'),
 	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
+	maritalStatus: text("marital_status"),
 }, (table) => [
+	index("idx_registered_students_id_number").using("btree", table.idNumber.asc().nullsLast().op("text_ops")),
+	index("idx_registered_students_status").using("btree", table.status.asc().nullsLast().op("text_ops")),
 	unique("registered_students_student_id_key").on(table.studentId),
 	unique("registered_students_id_number_key").on(table.idNumber),
 	check("registered_students_surname_not_empty", sql`(surname IS NOT NULL) AND (surname <> ''::text)`),
@@ -321,10 +435,12 @@ export const students = pgTable("students", {
 	status: varchar({ length: 20 }).default('active'),
 	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
+	class: text(),
 }, (table) => [
 	index("idx_students_class_id").using("btree", table.classId.asc().nullsLast().op("int4_ops")),
 	index("idx_students_email").using("btree", table.email.asc().nullsLast().op("text_ops")),
 	index("idx_students_id_number").using("btree", table.idNumber.asc().nullsLast().op("text_ops")),
+	index("idx_students_registered_id").using("btree", table.registeredStudentId.asc().nullsLast().op("int4_ops")),
 	index("idx_students_status").using("btree", table.status.asc().nullsLast().op("text_ops")),
 	foreignKey({
 			columns: [table.registeredStudentId],
@@ -334,117 +450,6 @@ export const students = pgTable("students", {
 	unique("students_registered_student_id_key").on(table.registeredStudentId),
 	unique("students_student_id_key").on(table.studentId),
 	unique("students_id_number_key").on(table.idNumber),
-]);
-
-export const studentMedicalInfo = pgTable("student_medical_info", {
-	id: integer().primaryKey().notNull(),
-	studentId: text("student_id").notNull(),
-	familyDoctor: text("family_doctor"),
-	doctorPhone: text("doctor_phone"),
-	medicalConditions: text("medical_conditions").array(),
-	medicalConditionsDetails: text("medical_conditions_details"),
-	childhoodSicknesses: text("childhood_sicknesses"),
-	lifeThreateningAllergies: text("life_threatening_allergies"),
-	otherAllergies: text("other_allergies"),
-	regularMedications: boolean("regular_medications"),
-	regularMedicationsDetails: text("regular_medications_details"),
-	majorOperations: text("major_operations"),
-	behaviorProblems: text("behavior_problems"),
-	speechHearingProblems: text("speech_hearing_problems"),
-	birthComplications: text("birth_complications"),
-	immunisationUpToDate: boolean("immunisation_up_to_date"),
-	familyMedicalHistory: text("family_medical_history"),
-	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
-	updatedAt: timestamp("updated_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
-}, (table) => [
-	index("idx_student_medical_id_number").using("btree", table.studentId.asc().nullsLast().op("text_ops")),
-	foreignKey({
-			columns: [table.id],
-			foreignColumns: [students.id],
-			name: "student_medical_info_id_fkey"
-		}).onDelete("cascade"),
-]);
-
-export const parents = pgTable("parents", {
-	id: serial().primaryKey().notNull(),
-	title: text(),
-	name: text().notNull(),
-	surname: text().notNull(),
-	idNumber: text("id_number"),
-	dateOfBirth: text("date_of_birth"),
-	gender: text(),
-	email: text(),
-	phone: text().notNull(),
-	alternatePhone: text("alternate_phone"),
-	homeAddress: text("home_address"),
-	postalAddress: text("postal_address"),
-	workAddress: text("work_address"),
-	occupation: text(),
-	employer: text(),
-	workPhone: text("work_phone"),
-	relationshipToStudent: text("relationship_to_student").notNull(),
-	isPrimaryContact: boolean("is_primary_contact").default(false),
-	emergencyContact: boolean("emergency_contact").default(false),
-	authorizedToPickup: boolean("authorized_to_pickup").default(true),
-	responsibleForFees: boolean("responsible_for_fees").default(false),
-	feePaymentMethod: text("fee_payment_method"),
-	bankAccountDetails: jsonb("bank_account_details"),
-	medicalConsent: boolean("medical_consent").default(false),
-	status: text().default('active'),
-	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
-	updatedAt: timestamp("updated_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
-}, (table) => [
-	index("idx_parents_email").using("btree", table.email.asc().nullsLast().op("text_ops")),
-	index("idx_parents_phone").using("btree", table.phone.asc().nullsLast().op("text_ops")),
-	index("idx_parents_status").using("btree", table.status.asc().nullsLast().op("text_ops")),
-	index("idx_parents_surname").using("btree", table.surname.asc().nullsLast().op("text_ops")),
-	unique("parents_id_number_key").on(table.idNumber),
-	check("parents_name_not_empty", sql`(name IS NOT NULL) AND (name <> ''::text)`),
-	check("parents_surname_not_empty", sql`(surname IS NOT NULL) AND (surname <> ''::text)`),
-]);
-
-export const parentStudentRelations = pgTable("parent_student_relations", {
-	id: serial().primaryKey().notNull(),
-	parentId: integer("parent_id").notNull(),
-	studentId: integer("student_id").notNull(),
-	relationship: text().notNull(),
-	isPrimaryContact: boolean("is_primary_contact").default(false),
-	emergencyContact: boolean("emergency_contact").default(false),
-	authorizedToPickup: boolean("authorized_to_pickup").default(true),
-	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
-}, (table) => [
-	index("idx_parent_student_relations_parent").using("btree", table.parentId.asc().nullsLast().op("int4_ops")),
-	index("idx_parent_student_relations_student").using("btree", table.studentId.asc().nullsLast().op("int4_ops")),
-	foreignKey({
-			columns: [table.parentId],
-			foreignColumns: [parents.id],
-			name: "parent_student_relations_parent_id_fkey"
-		}).onDelete("cascade"),
-	foreignKey({
-			columns: [table.studentId],
-			foreignColumns: [students.id],
-			name: "parent_student_relations_student_id_fkey"
-		}).onDelete("cascade"),
-	unique("unique_parent_student_relation").on(table.parentId, table.studentId),
-]);
-
-export const academicTerms = pgTable("academic_terms", {
-	id: serial().primaryKey().notNull(),
-	academicYearId: integer("academic_year_id").notNull(),
-	name: text().notNull(),
-	termOrder: integer("term_order").notNull(),
-	startDate: date("start_date").notNull(),
-	endDate: date("end_date").notNull(),
-	isCurrent: boolean("is_current").default(false),
-	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
-}, (table) => [
-	foreignKey({
-			columns: [table.academicYearId],
-			foreignColumns: [academicYears.id],
-			name: "academic_terms_academic_year_id_fkey"
-		}).onDelete("cascade"),
-	unique("unique_term_name_year").on(table.academicYearId, table.name),
-	check("check_term_dates", sql`start_date <= end_date`),
 ]);
 
 export const teacherClasses = pgTable("teacher_classes", {
@@ -1069,6 +1074,32 @@ export const staffSalary = pgTable("staff_salary", {
 		}).onDelete("cascade"),
 ]);
 
+export const events = pgTable("events", {
+	id: serial().primaryKey().notNull(),
+	title: text().notNull(),
+	description: text(),
+	startDate: timestamp("start_date", { mode: 'string' }).notNull(),
+	endDate: timestamp("end_date", { mode: 'string' }).notNull(),
+	eventType: varchar("event_type", { length: 50 }).notNull(),
+	targetAudience: varchar("target_audience", { length: 20 }).default('all'),
+	classId: integer("class_id"),
+	createdBy: integer("created_by"),
+	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+	index("idx_events_date").using("btree", table.startDate.asc().nullsLast().op("timestamp_ops")),
+	index("idx_events_type").using("btree", table.eventType.asc().nullsLast().op("text_ops")),
+	foreignKey({
+			columns: [table.classId],
+			foreignColumns: [classes.id],
+			name: "events_class_id_fkey"
+		}).onDelete("set null"),
+	foreignKey({
+			columns: [table.createdBy],
+			foreignColumns: [staff.id],
+			name: "events_created_by_fkey"
+		}).onDelete("set null"),
+]);
+
 export const reportCards = pgTable("report_cards", {
 	id: serial().primaryKey().notNull(),
 	studentId: integer("student_id").notNull(),
@@ -1118,61 +1149,6 @@ export const reportCards = pgTable("report_cards", {
 			name: "report_cards_generated_by_fkey"
 		}).onDelete("set null"),
 	unique("unique_report_card").on(table.studentId, table.academicYearId, table.termId, table.classId),
-]);
-
-export const events = pgTable("events", {
-	id: serial().primaryKey().notNull(),
-	title: text().notNull(),
-	description: text(),
-	startDate: timestamp("start_date", { mode: 'string' }).notNull(),
-	endDate: timestamp("end_date", { mode: 'string' }).notNull(),
-	eventType: varchar("event_type", { length: 50 }).notNull(),
-	targetAudience: varchar("target_audience", { length: 20 }).default('all'),
-	classId: integer("class_id"),
-	createdBy: integer("created_by"),
-	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
-}, (table) => [
-	index("idx_events_date").using("btree", table.startDate.asc().nullsLast().op("timestamp_ops")),
-	index("idx_events_type").using("btree", table.eventType.asc().nullsLast().op("text_ops")),
-	foreignKey({
-			columns: [table.classId],
-			foreignColumns: [classes.id],
-			name: "events_class_id_fkey"
-		}).onDelete("set null"),
-	foreignKey({
-			columns: [table.createdBy],
-			foreignColumns: [staff.id],
-			name: "events_created_by_fkey"
-		}).onDelete("set null"),
-]);
-
-export const reportCardSubjects = pgTable("report_card_subjects", {
-	id: serial().primaryKey().notNull(),
-	reportCardId: integer("report_card_id").notNull(),
-	subjectId: integer("subject_id").notNull(),
-	marksObtained: numeric("marks_obtained", { precision: 6, scale:  2 }),
-	maxMarks: numeric("max_marks", { precision: 6, scale:  2 }),
-	percentage: numeric({ precision: 5, scale:  2 }),
-	grade: text(),
-	gradePoint: numeric("grade_point", { precision: 3, scale:  1 }),
-	teacherComments: text("teacher_comments"),
-	practicalMarks: numeric("practical_marks", { precision: 6, scale:  2 }),
-	theoryMarks: numeric("theory_marks", { precision: 6, scale:  2 }),
-	assignmentMarks: numeric("assignment_marks", { precision: 6, scale:  2 }),
-	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
-}, (table) => [
-	index("idx_report_card_subjects_report_card").using("btree", table.reportCardId.asc().nullsLast().op("int4_ops")),
-	foreignKey({
-			columns: [table.reportCardId],
-			foreignColumns: [reportCards.id],
-			name: "report_card_subjects_report_card_id_fkey"
-		}).onDelete("cascade"),
-	foreignKey({
-			columns: [table.subjectId],
-			foreignColumns: [subjects.id],
-			name: "report_card_subjects_subject_id_fkey"
-		}).onDelete("cascade"),
-	unique("unique_report_card_subject").on(table.reportCardId, table.subjectId),
 ]);
 
 export const chatRooms = pgTable("chat_rooms", {
@@ -1325,6 +1301,51 @@ export const classActivities = pgTable("class_activities", {
 	description: text(),
 	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
 });
+
+export const reportCardSubjects = pgTable("report_card_subjects", {
+	id: serial().primaryKey().notNull(),
+	reportCardId: integer("report_card_id").notNull(),
+	subjectId: integer("subject_id").notNull(),
+	marksObtained: numeric("marks_obtained", { precision: 6, scale:  2 }),
+	maxMarks: numeric("max_marks", { precision: 6, scale:  2 }),
+	percentage: numeric({ precision: 5, scale:  2 }),
+	grade: text(),
+	gradePoint: numeric("grade_point", { precision: 3, scale:  1 }),
+	teacherComments: text("teacher_comments"),
+	practicalMarks: numeric("practical_marks", { precision: 6, scale:  2 }),
+	theoryMarks: numeric("theory_marks", { precision: 6, scale:  2 }),
+	assignmentMarks: numeric("assignment_marks", { precision: 6, scale:  2 }),
+	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+	index("idx_report_card_subjects_report_card").using("btree", table.reportCardId.asc().nullsLast().op("int4_ops")),
+	foreignKey({
+			columns: [table.reportCardId],
+			foreignColumns: [reportCards.id],
+			name: "report_card_subjects_report_card_id_fkey"
+		}).onDelete("cascade"),
+	foreignKey({
+			columns: [table.subjectId],
+			foreignColumns: [subjects.id],
+			name: "report_card_subjects_subject_id_fkey"
+		}).onDelete("cascade"),
+	unique("unique_report_card_subject").on(table.reportCardId, table.subjectId),
+]);
+
+export const studentMigrationLog = pgTable("student_migration_log", {
+	id: serial().primaryKey().notNull(),
+	registeredStudentId: integer("registered_student_id"),
+	studentId: varchar("student_id", { length: 50 }),
+	action: varchar({ length: 20 }),
+	migratedAt: timestamp("migrated_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
+	migratedBy: text("migrated_by"),
+	notes: text(),
+}, (table) => [
+	foreignKey({
+			columns: [table.registeredStudentId],
+			foreignColumns: [registeredStudents.id],
+			name: "student_migration_log_registered_student_id_fkey"
+		}),
+]);
 export const dailyAttendanceView = pgView("daily_attendance_view", {	date: date(),
 	classId: integer("class_id"),
 	className: text("class_name"),
@@ -1390,3 +1411,16 @@ export const feeArrearsView = pgView("fee_arrears_view", {	studentId: integer("s
 	status: varchar({ length: 20 }),
 	daysOverdue: integer("days_overdue"),
 }).as(sql`SELECT s.id AS student_id, s.name, s.surname, s.class_name, s.class_section, sf.academic_year, sf.term, sf.amount_due, sf.amount_paid, sf.amount_due - sf.amount_paid AS balance, sf.due_date, sf.status, CASE WHEN CURRENT_DATE > sf.due_date THEN CURRENT_DATE - sf.due_date ELSE 0 END AS days_overdue FROM student_fees sf JOIN students s ON s.id = sf.student_id WHERE sf.amount_due > sf.amount_paid AND sf.status::text <> 'paid'::text`);
+
+export const studentMigrationStatus = pgView("student_migration_status", {	registeredId: integer("registered_id"),
+	name: text(),
+	surname: text(),
+	idNumber: text("id_number"),
+	registeredStatus: text("registered_status"),
+	dateOfEnrolment: text("date_of_enrolment"),
+	migrationStatus: text("migration_status"),
+	assignedStudentId: varchar("assigned_student_id", { length: 50 }),
+	className: text("class_name"),
+	classSection: text("class_section"),
+	migratedAt: timestamp("migrated_at", { mode: 'string' }),
+}).as(sql`SELECT rs.id AS registered_id, rs.name, rs.surname, rs.id_number, rs.status AS registered_status, rs.date_of_enrolment, CASE WHEN s.id IS NOT NULL THEN 'Migrated'::text ELSE 'Not Migrated'::text END AS migration_status, s.student_id AS assigned_student_id, s.class_name, s.class_section, s.created_at AS migrated_at FROM registered_students rs LEFT JOIN students s ON rs.id = s.registered_student_id ORDER BY rs.date_of_enrolment DESC`);

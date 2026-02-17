@@ -158,7 +158,7 @@ export const navItems: NavItem[] = [
   
   { 
     title: "Schedule", 
-    href: "/dashboard/schedule", 
+    href: "/schedule", 
     icon: Calendar, 
     roles: ["admin", "teacher", "student"] 
   },
