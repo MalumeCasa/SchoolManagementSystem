@@ -9,7 +9,237 @@ export type NewStudent = {
   name: string;
 };
 
-// CREATE
+// ─── Error Parsing Helper ──────────────────────────────────────────────────────
+
+function parseDbError(error: unknown): { message: string; field?: string; friendlyField?: string } {
+  const raw = error instanceof Error ? error.message : String(error);
+
+  const fieldLabels: Record<string, string> = {
+    id_number:                        'ID / Passport Number',
+    email:                            'Primary Email',
+    phone:                            'Primary Phone Number',
+    name:                             'First Name',
+    surname:                          'Surname',
+    date_of_birth:                    'Date of Birth',
+    date_of_enrolment:                'Date of Enrolment',
+    sex:                              'Sex',
+    religion:                         'Religion',
+    care_required:                    'Care Required',
+    marital_status:                   'Marital Status',
+    mother_email:                     "Mother's Email",
+    mother_cell:                      "Mother's Cell Phone",
+    mother_work_phone:                "Mother's Work Phone",
+    mother_home_phone:                "Mother's Home Phone",
+    mother_id_number:                 "Mother's ID Number",
+    mother_surname:                   "Mother's Surname",
+    mother_first_names:               "Mother's First Names",
+    mother_occupation:                "Mother's Occupation",
+    mother_employer:                  "Mother's Employer",
+    mother_home_address:              "Mother's Home Address",
+    mother_work_address:              "Mother's Work Address",
+    father_email:                     "Father's Email",
+    father_cell:                      "Father's Cell Phone",
+    father_work_phone:                "Father's Work Phone",
+    father_home_phone:                "Father's Home Phone",
+    father_id_number:                 "Father's ID Number",
+    father_surname:                   "Father's Surname",
+    father_first_names:               "Father's First Names",
+    father_occupation:                "Father's Occupation",
+    father_employer:                  "Father's Employer",
+    father_home_address:              "Father's Home Address",
+    father_work_address:              "Father's Work Address",
+    guardian_email:                   "Guardian's Email",
+    guardian_cell:                    "Guardian's Cell Phone",
+    guardian_work_phone:              "Guardian's Work Phone",
+    guardian_home_phone:              "Guardian's Home Phone",
+    guardian_id_number:               "Guardian's ID Number",
+    guardian_surname:                 "Guardian's Surname",
+    guardian_first_names:             "Guardian's First Names",
+    guardian_occupation:              "Guardian's Occupation",
+    guardian_employer:                "Guardian's Employer",
+    guardian_home_address:            "Guardian's Home Address",
+    guardian_work_address:            "Guardian's Work Address",
+    emergency_contact_friend_name:    'Emergency Contact (Friend) Name',
+    emergency_contact_friend_cell:    'Emergency Contact (Friend) Cell',
+    emergency_contact_kin_name:       'Emergency Contact (Kin) Name',
+    emergency_contact_kin_cell:       'Emergency Contact (Kin) Cell',
+    transport_contact_1_name:         'Transport Contact 1 Name',
+    transport_contact_1_phone:        'Transport Contact 1 Phone',
+    transport_contact_2_name:         'Transport Contact 2 Name',
+    transport_contact_2_phone:        'Transport Contact 2 Phone',
+    transport_contact_3_name:         'Transport Contact 3 Name',
+    transport_contact_3_phone:        'Transport Contact 3 Phone',
+  };
+
+  const toFriendly = (col: string) => fieldLabels[col] ?? col.replace(/_/g, ' ');
+
+  const cause = (error as any)?.cause as any;
+  const pgDetail: string = cause?.detail ?? cause?.message ?? '';
+  const pgCode: string = cause?.code ?? '';
+  const pgConstraint: string = cause?.constraint ?? '';
+  const pgColumn: string = cause?.column ?? '';
+
+  const searchIn = [pgDetail, raw].join(' ');
+
+  // 1. Unique constraint violation
+  const uniqueMatch = searchIn.match(/Key \(([^)]+)\)=\(([^)]*)\) already exists/);
+  if (uniqueMatch || pgCode === '23505') {
+    if (uniqueMatch) {
+      const col = uniqueMatch[1];
+      const val = uniqueMatch[2];
+      return {
+        message: `A record with this ${toFriendly(col)} already exists in the system (value: "${val}"). Please use a different value or search for the existing student by their ID number.`,
+        field: col,
+        friendlyField: toFriendly(col),
+      };
+    }
+    const constraintHint = pgConstraint ? ` (constraint: "${pgConstraint}")` : '';
+    return {
+      message: `A duplicate value was detected${constraintHint}. Please check for existing records before submitting.`,
+      field: pgConstraint || undefined,
+    };
+  }
+
+  // 2. Not-null constraint violation
+  const nullMatch = searchIn.match(/null value in column "([^"]+)".*violates not-null constraint/);
+  if (nullMatch || pgCode === '23502') {
+    const col = nullMatch?.[1] ?? pgColumn;
+    return {
+      message: col
+        ? `The field "${toFriendly(col)}" is required and cannot be empty. Please fill it in and try again.`
+        : 'A required field is missing. Please check the form for empty required fields.',
+      field: col || undefined,
+      friendlyField: col ? toFriendly(col) : undefined,
+    };
+  }
+
+  // 3. Check constraint violation
+  const checkMatch = searchIn.match(/violates check constraint "([^"]+)"/);
+  if (checkMatch || pgCode === '23514') {
+    const constraint = checkMatch?.[1] ?? pgConstraint;
+    return {
+      message: `A value in the form failed validation (constraint: "${constraint}"). Please check the highlighted field and try again.`,
+      field: constraint || undefined,
+    };
+  }
+
+  // 4. Foreign key violation
+  const fkMatch = searchIn.match(/violates foreign key constraint "([^"]+)"/);
+  if (fkMatch || pgCode === '23503') {
+    const constraint = fkMatch?.[1] ?? pgConstraint;
+    return {
+      message: `A related record was not found (constraint: "${constraint}"). Please ensure all linked records exist before saving.`,
+      field: constraint || undefined,
+    };
+  }
+
+  // 5. Value too long
+  const lengthMatch = searchIn.match(/value too long for type character varying\((\d+)\)/);
+  if (lengthMatch || pgCode === '22001') {
+    return {
+      message: `One of the values you entered is too long (maximum ${lengthMatch?.[1] ?? '?'} characters). Please shorten the relevant field and try again.`,
+    };
+  }
+
+  // 6. Invalid input / type mismatch
+  if (pgCode === '22P02' || pgCode === '22003') {
+    return {
+      message: 'One of the form values has an invalid format (e.g. a number field contains text). Please review the form and try again.',
+    };
+  }
+
+  // 7. Drizzle "Failed query" wrapper
+  if (raw.startsWith('Failed query:')) {
+    return {
+      message: 'The database rejected the submission. This is likely caused by a duplicate value or an invalid field entry. Please review the form carefully and try again. If the problem persists, contact support.',
+    };
+  }
+
+  // 8. Generic fallback
+  return {
+    message: 'An unexpected error occurred while saving. Please try again or contact support if the issue continues.',
+  };
+}
+
+// ─── Duplicate Field Checkers ──────────────────────────────────────────────────
+
+/**
+ * Checks whether the given email address is already registered to another student.
+ * Pass `excludeIdNumber` when editing an existing student so their own email
+ * doesn't trigger a false positive.
+ *
+ * Returns:
+ *   { exists: false }                          → email is free to use
+ *   { exists: true, studentName: string }      → email is taken (includes student name)
+ *   { exists: false, error: string }           → DB error (treat as non-blocking warning)
+ */
+export async function checkEmailExists(
+  email: string,
+  excludeIdNumber?: string
+): Promise<{ exists: boolean; studentName?: string; error?: string }> {
+  if (!email || email.trim() === '') return { exists: false };
+
+  try {
+    const student = await db.query.registeredStudents.findFirst({
+      where: eq(registeredStudents.email, email.trim().toLowerCase()),
+    });
+
+    if (!student) return { exists: false };
+
+    // If we're editing, skip the student with the same ID number
+    if (excludeIdNumber && student.idNumber === excludeIdNumber) {
+      return { exists: false };
+    }
+
+    return {
+      exists: true,
+      studentName: [student.name, student.surname].filter(Boolean).join(' ') || 'an existing student',
+    };
+  } catch (error) {
+    console.error('checkEmailExists error:', error);
+    return { exists: false, error: 'Could not verify email uniqueness.' };
+  }
+}
+
+/**
+ * Checks whether the given phone number is already registered to another student.
+ * Pass `excludeIdNumber` when editing an existing student so their own number
+ * doesn't trigger a false positive.
+ *
+ * Returns:
+ *   { exists: false }                          → phone is free to use
+ *   { exists: true, studentName: string }      → phone is taken (includes student name)
+ *   { exists: false, error: string }           → DB error (treat as non-blocking warning)
+ */
+export async function checkPhoneExists(
+  phone: string,
+  excludeIdNumber?: string
+): Promise<{ exists: boolean; studentName?: string; error?: string }> {
+  if (!phone || phone.trim() === '') return { exists: false };
+
+  try {
+    const student = await db.query.registeredStudents.findFirst({
+      where: eq(registeredStudents.phone, phone.trim()),
+    });
+
+    if (!student) return { exists: false };
+
+    if (excludeIdNumber && student.idNumber === excludeIdNumber) {
+      return { exists: false };
+    }
+
+    return {
+      exists: true,
+      studentName: [student.name, student.surname].filter(Boolean).join(' ') || 'an existing student',
+    };
+  } catch (error) {
+    console.error('checkPhoneExists error:', error);
+    return { exists: false, error: 'Could not verify phone uniqueness.' };
+  }
+}
+
+// ─── CREATE ────────────────────────────────────────────────────────────────────
+
 export async function createStudent(formData: FormData) {
   const name = formData.get('name') as string;
   const surname = formData.get('surname') as string;
@@ -38,7 +268,6 @@ export async function createStudentWithDetails(formData: FormData) {
       name, surname, email, phone, address, attendance,
       class: studentClass
     });
-
     revalidatePath('/');
     return { success: true, message: 'Student created successfully' };
   } catch (error) {
@@ -47,16 +276,15 @@ export async function createStudentWithDetails(formData: FormData) {
   }
 }
 
-// Register Student - UPDATED VERSION (Updates if student exists)
+// ─── Register Student ──────────────────────────────────────────────────────────
+
 export async function registerStudent(formData: FormData) {
   try {
-    // Parse array fields from comma-separated strings
     const authorizedToBring = formData.get('authorizedToBring')?.toString().split(',').filter(Boolean) || [];
     const authorizedToCollect = formData.get('authorizedToCollect')?.toString().split(',').filter(Boolean) || [];
     const livesWith = formData.get('livesWith')?.toString().split(',').filter(Boolean) || [];
     const homeLanguage = formData.get('homeLanguage')?.toString().split(',').filter(Boolean) || [];
 
-    // Basic student information
     const name = formData.get('name') as string;
     const surname = formData.get('surname') as string;
     const preferredName = formData.get('preferredName') as string;
@@ -73,11 +301,9 @@ export async function registerStudent(formData: FormData) {
     const dateOfEnrolment = formData.get('dateOfEnrolment') as string;
     const ageAtEnrolment = parseInt(formData.get('ageAtEnrolment') as string) || 0;
 
-    // Family information
     const numberOfChildrenInFamily = parseInt(formData.get('numberOfChildrenInFamily') as string) || 0;
     const positionInFamily = parseInt(formData.get('positionInFamily') as string) || 0;
 
-    // Medical consent data
     const medicalConsent1 = formData.get('medical_consent1') as string;
     const medicalConsent1Father = formData.get('consent1_father') === 'on';
     const medicalConsent1Mother = formData.get('consent1_mother') === 'on';
@@ -90,7 +316,6 @@ export async function registerStudent(formData: FormData) {
 
     const maritalStatus = formData.get('maritalStatus') as string;
 
-    // Emergency contacts
     const emergencyContactFriendName = formData.get('emergencyContactFriendName') as string;
     const emergencyContactFriendRelationship = formData.get('emergencyContactFriendRelationship') as string;
     const emergencyContactFriendAddress = formData.get('emergencyContactFriendAddress') as string;
@@ -104,7 +329,6 @@ export async function registerStudent(formData: FormData) {
     const emergencyContactKinHomePhone = formData.get('emergencyContactKinHomePhone') as string;
     const emergencyContactKinCell = formData.get('emergencyContactKinCell') as string;
 
-    // Transport information
     const transportContact1Name = formData.get('transportContact1Name') as string;
     const transportContact1Phone = formData.get('transportContact1Phone') as string;
     const transportContact2Name = formData.get('transportContact2Name') as string;
@@ -114,7 +338,6 @@ export async function registerStudent(formData: FormData) {
 
     const specialInstructions = formData.get('specialInstructions') as string;
 
-    // Parent/Guardian information
     const motherTitle = formData.get('motherTitle') as string;
     const motherSurname = formData.get('motherSurname') as string;
     const motherFirstNames = formData.get('motherFirstNames') as string;
@@ -141,7 +364,6 @@ export async function registerStudent(formData: FormData) {
     const fatherHomeAddress = formData.get('fatherHomeAddress') as string;
     const fatherWorkAddress = formData.get('fatherWorkAddress') as string;
 
-    //Guardian information
     const guardianTitle = formData.get('guardianTitle') as string;
     const guardianSurname = formData.get('guardianSurname') as string;
     const guardianFirstNames = formData.get('guardianFirstNames') as string;
@@ -155,7 +377,6 @@ export async function registerStudent(formData: FormData) {
     const guardianHomeAddress = formData.get('guardianHomeAddress') as string;
     const guardianWorkAddress = formData.get('guardianWorkAddress') as string;
 
-    // Signature data from medical consent
     const consent1FatherSignature = formData.get('consent1_fatherSignature') as string;
     const consent1FatherDate = formData.get('consent1_fatherDate') as string;
     const consent1MotherSignature = formData.get('consent1_motherSignature') as string;
@@ -170,15 +391,39 @@ export async function registerStudent(formData: FormData) {
     const consent2GuardianSignature = formData.get('consent2_guardianSignature') as string;
     const consent2GuardianDate = formData.get('consent2_guardianDate') as string;
 
-    // Arrays (convert from comma-separated strings or handle appropriately)
     const medicalConditions = (formData.get('medicalConditions') as string)?.split(',').map(item => item.trim()).filter(Boolean) || [];
 
     // Check if student already exists by ID number
     const existingStudent = await getRegisteredStudentByIdNumber(idNumber);
 
-    // Prepare student data
+    // ── Pre-submission duplicate checks for email & phone ─────────────────────
+    // Only run these for NEW students (not updates — updates are allowed to keep
+    // their own email/phone). existingStudent being null means this is an insert.
+    if (!existingStudent) {
+      if (email && email.trim() !== '') {
+        const emailCheck = await checkEmailExists(email);
+        if (emailCheck.exists) {
+          return {
+            error: `This email address (${email}) is already registered to ${emailCheck.studentName}. Please use a different email or search for the existing student by their ID number.`,
+            field: 'email',
+            friendlyField: 'Primary Email',
+          };
+        }
+      }
+
+      if (phone && phone.trim() !== '') {
+        const phoneCheck = await checkPhoneExists(phone);
+        if (phoneCheck.exists) {
+          return {
+            error: `This phone number (${phone}) is already registered to ${phoneCheck.studentName}. Please use a different number or search for the existing student by their ID number.`,
+            field: 'phone',
+            friendlyField: 'Primary Phone Number',
+          };
+        }
+      }
+    }
+
     const studentData = {
-      // Basic information
       name,
       surname,
       preferredName,
@@ -195,14 +440,10 @@ export async function registerStudent(formData: FormData) {
       previousSchool,
       intendedPrimarySchool,
       careRequired,
-
-      // Family information
       numberOfChildrenInFamily,
       positionInFamily,
       authorizedToBring,
       authorizedToCollect,
-
-      // Medical consent
       medicalConsent1,
       medicalConsent1Father,
       medicalConsent1Mother,
@@ -213,8 +454,6 @@ export async function registerStudent(formData: FormData) {
       medicalConsent2Guardian,
       maritalStatus,
       livesWith,
-
-      // Emergency contacts
       emergencyContactFriendName,
       emergencyContactFriendRelationship,
       emergencyContactFriendAddress,
@@ -227,18 +466,13 @@ export async function registerStudent(formData: FormData) {
       emergencyContactKinWorkPhone,
       emergencyContactKinHomePhone,
       emergencyContactKinCell,
-
-      // Transport information
       transportContact1Name,
       transportContact1Phone,
       transportContact2Name,
       transportContact2Phone,
       transportContact3Name,
       transportContact3Phone,
-
       specialInstructions,
-
-      // Mother information
       motherTitle,
       motherSurname,
       motherFirstNames,
@@ -251,8 +485,6 @@ export async function registerStudent(formData: FormData) {
       motherEmail,
       motherHomeAddress,
       motherWorkAddress,
-
-      // Father information
       fatherTitle,
       fatherSurname,
       fatherFirstNames,
@@ -265,8 +497,6 @@ export async function registerStudent(formData: FormData) {
       fatherEmail,
       fatherHomeAddress,
       fatherWorkAddress,
-
-      //Guardian information 
       guardianTitle,
       guardianSurname,
       guardianFirstNames,
@@ -279,17 +509,11 @@ export async function registerStudent(formData: FormData) {
       guardianEmail,
       guardianHomeAddress,
       guardianWorkAddress,
-
-      // Medical consent signatures
       motherFinancialSignature: consent1MotherSignature || consent2MotherSignature,
       motherFinancialDate: consent1MotherDate || consent2MotherDate,
       fatherFinancialSignature: consent1FatherSignature || consent2FatherSignature,
       fatherFinancialDate: consent1FatherDate || consent2FatherDate,
-
-      // Arrays
       medicalConditions,
-
-      // Default values for optional fields
       status: 'pending',
       popiConsent: false,
       financialAgreedTerms: false,
@@ -299,12 +523,8 @@ export async function registerStudent(formData: FormData) {
     };
 
     if (existingStudent) {
-      // Create update data with only non-empty values
-      const updateData: any = {
-        updated_at: new Date(),
-      };
+      const updateData: any = { updated_at: new Date() };
 
-      // Only include fields that have values
       Object.keys(studentData).forEach((key) => {
         const value = (studentData as any)[key];
         if (value !== null && value !== undefined && value !== '') {
@@ -312,7 +532,6 @@ export async function registerStudent(formData: FormData) {
         }
       });
 
-      // Update existing student
       const updatedStudent = await db.update(registeredStudents)
         .set(updateData)
         .where(eq(registeredStudents.idNumber, idNumber))
@@ -325,9 +544,7 @@ export async function registerStudent(formData: FormData) {
         action: 'updated',
         student: updatedStudent[0]
       };
-
     } else {
-      // Insert new student
       const newStudent = await db.insert(registeredStudents)
         .values(studentData)
         .returning();
@@ -342,13 +559,17 @@ export async function registerStudent(formData: FormData) {
     }
   } catch (error) {
     console.error('Failed to register/update student:', error);
+    const parsed = parseDbError(error);
     return {
-      error: 'Failed to register/update student: ' + (error instanceof Error ? error.message : 'Unknown error')
+      error: parsed.message,
+      field: parsed.field,
+      friendlyField: parsed.friendlyField,
     };
   }
 }
 
-// Alternative register function for simpler forms
+// ─── Register Student Basic ────────────────────────────────────────────────────
+
 export async function registerStudentBasic(formData: FormData) {
   try {
     const name = formData.get('name') as string;
@@ -378,8 +599,8 @@ export async function registerStudentBasic(formData: FormData) {
   }
 }
 
-// READ
-// Get registered students
+// ─── READ ──────────────────────────────────────────────────────────────────────
+
 export async function getRegisteredStudents() {
   try {
     const registeredStudentsList = await db.select().from(registeredStudents);
@@ -390,7 +611,6 @@ export async function getRegisteredStudents() {
   }
 }
 
-// Get registered student by ID
 export async function getRegisteredStudentById(id: number) {
   try {
     const student = await db.query.registeredStudents.findFirst({
@@ -445,7 +665,6 @@ export async function getStudentById(id: number) {
   }
 }
 
-//get student by ID number
 export async function getRegisteredStudentByIdNumber(idNumber: string) {
   try {
     const student = await db.query.registeredStudents.findFirst({
@@ -458,15 +677,12 @@ export async function getRegisteredStudentByIdNumber(idNumber: string) {
   }
 }
 
+// ─── UPDATE ────────────────────────────────────────────────────────────────────
 
-
-// UPDATE
-// UPDATE Consent Agreement
 export async function updateStudentConsent(formData: FormData) {
   try {
     const idNumber = formData.get('idNumber') as string;
 
-    // First, check if student exists with the provided ID number
     if (idNumber) {
       const existingStudent = await db.query.registeredStudents.findFirst({
         where: eq(registeredStudents.idNumber, idNumber),
@@ -476,40 +692,23 @@ export async function updateStudentConsent(formData: FormData) {
         return { error: 'Student not found with the provided ID number' };
       }
 
-      // Prepare update data
-      const updateData: any = {
-        updatedAt: new Date().toISOString()
-      };
+      const updateData: any = { updatedAt: new Date().toISOString() };
 
-      // Handle POPI consent fields
       const popiConsent = formData.get('popiConsent');
-      if (popiConsent !== null) {
-        updateData.popiConsent = popiConsent === 'on' || popiConsent === 'true';
-      }
+      if (popiConsent !== null) updateData.popiConsent = popiConsent === 'on' || popiConsent === 'true';
 
       const indemnityAgreement = formData.get('indemnityAgreement');
-      if (indemnityAgreement !== null) {
-        updateData.indemnityAgreement = indemnityAgreement === 'on' || indemnityAgreement === 'true';
-      }
+      if (indemnityAgreement !== null) updateData.indemnityAgreement = indemnityAgreement === 'on' || indemnityAgreement === 'true';
 
       const financialAgreedTerms = formData.get('financialAgreedTerms');
-      if (financialAgreedTerms !== null) {
-        updateData.financialAgreedTerms = financialAgreedTerms === 'on' || financialAgreedTerms === 'true';
-      }
+      if (financialAgreedTerms !== null) updateData.financialAgreedTerms = financialAgreedTerms === 'on' || financialAgreedTerms === 'true';
 
       const financialAgreedLiability = formData.get('financialAgreedLiability');
-      if (financialAgreedLiability !== null) {
-        updateData.financialAgreedLiability = financialAgreedLiability === 'on' || financialAgreedLiability === 'true';
-      }
+      if (financialAgreedLiability !== null) updateData.financialAgreedLiability = financialAgreedLiability === 'on' || financialAgreedLiability === 'true';
 
       const financialAgreedCancellation = formData.get('financialAgreedCancellation');
-      if (financialAgreedCancellation !== null) {
-        updateData.financialAgreedCancellation = financialAgreedCancellation === 'on' || financialAgreedCancellation === 'true';
-      }
+      if (financialAgreedCancellation !== null) updateData.financialAgreedCancellation = financialAgreedCancellation === 'on' || financialAgreedCancellation === 'true';
 
-
-
-      // Add text fields only if they are provided in the form
       const textFields = [
         'motherPopiSignature', 'motherPopiDate',
         'fatherPopiSignature', 'fatherPopiDate',
@@ -519,67 +718,36 @@ export async function updateStudentConsent(formData: FormData) {
         'signatory2FullName', 'signatory2IDNumber', 'signatory2Relation',
         'signatory2CellNumber', 'signatory2Email', 'signatory2PhysicalAddress',
         'signatory2DateSigned', 'signatory2Signature', 'witnessName', 'witnessSignature',
-        'signedAt', 'agreementDate',
-
-        'motherFinancialDate', 'fatherFinancialDate', 'monthlyAmount',
-        'paymentDate'
+        'signedAt', 'agreementDate', 'motherFinancialDate', 'fatherFinancialDate',
+        'monthlyAmount', 'paymentDate'
       ];
 
       textFields.forEach(field => {
         const value = formData.get(field) as string;
-        if (value !== null && value !== undefined && value !== '') {
-          updateData[field] = value;
-        }
+        if (value !== null && value !== undefined && value !== '') updateData[field] = value;
       });
 
-      // Debug log to see what's being submitted
-      console.log('Consent form data received:', {
-        idNumber,
-        popiConsent: formData.get('popiConsent'),
-        processedPopiConsent: updateData.popiConsent,
-        indemnityAgreement: formData.get('indemnityAgreement'),
-        processedIndemnityAgreement: updateData.indemnityAgreement,
-        financialAgreedTerms: formData.get('financialAgreedTerms'),
-        processedFinancialAgreedTerms: updateData.financialAgreedTerms,
-        financialAsgreedLiability: formData.get('financialAgreedLiability'),
-        processedfinancialAgreedLiability: updateData.financialAgreedLiability,
-        financialAgreedCancellation: formData.get('financialAgreedCancellation'),
-        processedfinancialAgreedCancellation: updateData.financialAgreedCancellation,
-        textFields: textFields.map(field => ({
-          field,
-          value: formData.get(field)
-        })),
-      });
-
-      // Update the student
       const updatedStudent = await db.update(registeredStudents)
         .set(updateData)
         .where(eq(registeredStudents.idNumber, idNumber))
         .returning();
 
       revalidatePath('/');
-      return {
-        success: true,
-        message: 'Consent agreement updated successfully',
-        student: updatedStudent[0]
-      };
+      return { success: true, message: 'Consent agreement updated successfully', student: updatedStudent[0] };
     } else {
       return { error: 'ID number is required for update' };
     }
   } catch (error) {
     console.error('Failed to update student consent agreement:', error);
-    return {
-      error: 'Failed to update consent agreement: ' + (error instanceof Error ? error.message : 'Unknown error')
-    };
+    const parsed = parseDbError(error);
+    return { error: parsed.message, field: parsed.field, friendlyField: parsed.friendlyField };
   }
 }
 
-// Update registered student - Full
 export async function updateRegisteredStudent(id: number, formData: FormData) {
   try {
     const idNumber = formData.get('id_number') as string;
 
-    // First, check if student exists with the provided ID number
     if (idNumber) {
       const existingStudent = await db.query.registeredStudents.findFirst({
         where: eq(registeredStudents.idNumber, idNumber),
@@ -589,12 +757,8 @@ export async function updateRegisteredStudent(id: number, formData: FormData) {
         return { error: 'Student not found with the provided ID number' };
       }
 
-      // Prepare update data
-      const updateData: any = {
-        updatedAt: new Date().toISOString()
-      };
+      const updateData: any = { updatedAt: new Date().toISOString() };
 
-      // Add fields only if they are provided in the form
       const fields = [
         'name', 'surname', 'preferredName', 'dateOfBirth', 'sex', 'address',
         'email', 'phone', 'homeLanguage', 'religion', 'previousSchool',
@@ -617,30 +781,21 @@ export async function updateRegisteredStudent(id: number, formData: FormData) {
 
       fields.forEach(field => {
         const value = formData.get(field) as string;
-        if (value !== null && value !== undefined && value !== '') {
-          updateData[field] = value;
-        }
+        if (value !== null && value !== undefined && value !== '') updateData[field] = value;
       });
 
-      // Handle array fields
       const arrayFields = ['authorizedToBring', 'authorizedToCollect', 'medicalConditions'];
       arrayFields.forEach(field => {
         const value = formData.get(field) as string;
-        if (value) {
-          updateData[field] = value.split(',').map(item => item.trim()).filter(Boolean);
-        }
+        if (value) updateData[field] = value.split(',').map(item => item.trim()).filter(Boolean);
       });
 
-      // Handle number fields
       const numberFields = ['numberOfChildrenInFamily', 'positionInFamily', 'ageAtEnrolment'];
       numberFields.forEach(field => {
         const value = formData.get(field) as string;
-        if (value) {
-          updateData[field] = parseInt(value) || 0;
-        }
+        if (value) updateData[field] = parseInt(value) || 0;
       });
 
-      // Handle boolean fields
       const booleanFields = [
         'medicalConsent1Father', 'medicalConsent1Mother', 'medicalConsent1Guardian',
         'medicalConsent2Father', 'medicalConsent2Mother', 'medicalConsent2Guardian',
@@ -648,18 +803,14 @@ export async function updateRegisteredStudent(id: number, formData: FormData) {
       ];
       booleanFields.forEach(field => {
         const value = formData.get(field);
-        if (value !== null) {
-          updateData[field] = value === 'on' || value === 'true';
-        }
+        if (value !== null) updateData[field] = value === 'on' || value === 'true';
       });
 
-      // Handle medical consent answers
       const medicalConsent1 = formData.get('medical_consent1') as string;
       const medicalConsent2 = formData.get('medical_consent2') as string;
       if (medicalConsent1) updateData.medicalConsent1 = medicalConsent1;
       if (medicalConsent2) updateData.medicalConsent2 = medicalConsent2;
 
-      // Handle parent/guardian information
       const parentFields = [
         'motherTitle', 'motherSurname', 'motherFirstNames', 'motherIdNumber',
         'motherOccupation', 'motherEmployer', 'motherWorkPhone', 'motherHomePhone',
@@ -674,38 +825,30 @@ export async function updateRegisteredStudent(id: number, formData: FormData) {
 
       parentFields.forEach(field => {
         const value = formData.get(field) as string;
-        if (value !== null && value !== undefined && value !== '') {
-          updateData[field] = value;
-        }
+        if (value !== null && value !== undefined && value !== '') updateData[field] = value;
       });
 
-      // Update the student
       const updatedStudent = await db.update(registeredStudents)
         .set(updateData)
         .where(eq(registeredStudents.idNumber, idNumber))
         .returning();
 
       revalidatePath('/');
-      return {
-        success: true,
-        message: 'Student updated successfully',
-        student: updatedStudent[0]
-      };
+      return { success: true, message: 'Student updated successfully', student: updatedStudent[0] };
     } else {
       return { error: 'ID number is required for update' };
     }
   } catch (error) {
     console.error('Failed to update registered student:', error);
-    return { error: 'Failed to update student: ' + (error instanceof Error ? error.message : 'Unknown error') };
+    const parsed = parseDbError(error);
+    return { error: parsed.message, field: parsed.field, friendlyField: parsed.friendlyField };
   }
 }
 
-// UPDATE registered student - Medical Form (FIXED VERSION)
 export async function updateRegisteredStudentMedicalForm(formData: FormData) {
   try {
     const idNumber = formData.get('id_number') as string;
 
-    // First, check if student exists with the provided ID number
     if (idNumber) {
       const existingStudent = await db.query.registeredStudents.findFirst({
         where: eq(registeredStudents.idNumber, idNumber),
@@ -715,12 +858,8 @@ export async function updateRegisteredStudentMedicalForm(formData: FormData) {
         return { error: 'Student not found with the provided ID number' };
       }
 
-      // Prepare update data
-      const updateData: any = {
-        updatedAt: new Date().toISOString()
-      };
+      const updateData: any = { updatedAt: new Date().toISOString() };
 
-      // Add text fields only if they are provided in the form
       const textFields = [
         'familyDoctor', 'doctorPhone', 'childhoodSicknesses',
         'lifeThreateningAllergies', 'otherAllergies', 'majorOperations',
@@ -730,62 +869,33 @@ export async function updateRegisteredStudentMedicalForm(formData: FormData) {
 
       textFields.forEach(field => {
         const value = formData.get(field) as string;
-        if (value !== null && value !== undefined && value !== '') {
-          updateData[field] = value;
-        }
+        if (value !== null && value !== undefined && value !== '') updateData[field] = value;
       });
 
-      // Handle boolean fields - FIXED VERSION
       const booleanFields = [
-        'immunisationUpToDate',
-        'diabetes',
-        'asthma',
-        'epilepsy',
-        'cardiacMurmur',
-        'otherConditions',
-        'regularMedications'
+        'immunisationUpToDate', 'diabetes', 'asthma', 'epilepsy',
+        'cardiacMurmur', 'otherConditions', 'regularMedications'
       ];
 
-      // For each boolean field, check if it exists in formData
       booleanFields.forEach(field => {
         const value = formData.get(field);
-        // If the checkbox is checked, it will be present in formData with value 'on'
-        // If unchecked, it will be null/undefined
         updateData[field] = value !== null && value !== undefined;
       });
 
-      // Debug log to see what's being submitted
-      console.log('Form data received:', {
-        idNumber,
-        booleanFields: booleanFields.map(field => ({
-          field,
-          value: formData.get(field),
-          processed: updateData[field]
-        })),
-        textFields: textFields.map(field => ({
-          field,
-          value: formData.get(field)
-        }))
-      });
-
-      // Update the student
       const updatedStudent = await db.update(registeredStudents)
         .set(updateData)
         .where(eq(registeredStudents.idNumber, idNumber))
         .returning();
 
       revalidatePath('/');
-      return {
-        success: true,
-        message: 'Medical form updated successfully',
-        student: updatedStudent[0]
-      };
+      return { success: true, message: 'Medical form updated successfully', student: updatedStudent[0] };
     } else {
       return { error: 'ID number is required for update' };
     }
   } catch (error) {
     console.error('Failed to update registered student medical form:', error);
-    return { error: 'Failed to update medical form: ' + (error instanceof Error ? error.message : 'Unknown error') };
+    const parsed = parseDbError(error);
+    return { error: parsed.message, field: parsed.field, friendlyField: parsed.friendlyField };
   }
 }
 
@@ -835,9 +945,8 @@ export async function updateStudentWithDetails(id: number, formData: FormData) {
   }
 }
 
-// DELETE
+// ─── DELETE ────────────────────────────────────────────────────────────────────
 
-// DELETE registered student
 export async function deleteRegisteredStudent(id: number) {
   try {
     await db.delete(registeredStudents).where(eq(registeredStudents.id, id));
@@ -860,56 +969,31 @@ export async function deleteStudent(id: number) {
   }
 }
 
+// ─── EXPORT ────────────────────────────────────────────────────────────────────
+
 export async function exportStudents(studentsData: any[], format: 'json' | 'csv' | 'xlsx') {
   try {
     if (format === 'json') {
       const dataStr = JSON.stringify(studentsData, null, 2);
-      return {
-        data: dataStr,
-        filename: `students_${Date.now()}.json`,
-        mimeType: 'application/json'
-      };
-    } else if (format === 'csv') {
+      return { data: dataStr, filename: `students_${Date.now()}.json`, mimeType: 'application/json' };
+    } else if (format === 'csv' || format === 'xlsx') {
       const headers = ['ID', 'Name', 'Surname', 'Email', 'Phone', 'Address', 'Class'];
       const csvData = studentsData.map(student => [
-        student.id,
-        student.name,
-        student.surname,
-        student.email,
-        student.phone || 'N/A',
-        student.address || 'N/A',
-        student.class || 'N/A'
+        student.id, student.name, student.surname, student.email,
+        student.phone || 'N/A', student.address || 'N/A', student.class || 'N/A'
       ]);
 
       const csvContent = [headers, ...csvData]
         .map(row => row.map(field => `"${String(field).replace(/"/g, '""')}"`).join(','))
         .join('\n');
 
+      const isXlsx = format === 'xlsx';
       return {
         data: csvContent,
-        filename: `students_${Date.now()}.csv`,
-        mimeType: 'text/csv'
-      };
-    } else if (format === 'xlsx') {
-      const headers = ['ID', 'Name', 'Surname', 'Email', 'Phone', 'Address', 'Class'];
-      const csvData = studentsData.map(student => [
-        student.id,
-        student.name,
-        student.surname,
-        student.email,
-        student.phone || 'N/A',
-        student.address || 'N/A',
-        student.class || 'N/A'
-      ]);
-
-      const csvContent = [headers, ...csvData]
-        .map(row => row.map(field => `"${String(field).replace(/"/g, '""')}"`).join(','))
-        .join('\n');
-
-      return {
-        data: csvContent,
-        filename: `students_${Date.now()}.xlsx`,
-        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        filename: `students_${Date.now()}.${format}`,
+        mimeType: isXlsx
+          ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+          : 'text/csv'
       };
     }
   } catch (error) {

@@ -5,9 +5,9 @@ import { TextAreaGroup } from "@/components/FormElements/InputGroup/text-area";
 import { Select } from "@/components/FormElements/select";
 import { ShowcaseSection } from "@/components/Layouts/showcase-section";
 import { ShowcaseSectionDesc } from "@/components/Layouts/showcase-section";
-import LangaugeMultiSelect, { languageOptions } from "@components/FormElements/MultiSelect/LangaugeMultiSelect";
+import LangaugeMultiSelect from "@components/FormElements/MultiSelect/LangaugeMultiSelect";
 import RelationsMultiSelect from "@/components/FormElements/MultiSelect/RelationsMultiSelect";
-import { registerStudent } from "@api/student-actions";
+import { registerStudent, checkEmailExists, checkPhoneExists } from "@api/student-actions";
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { getRegisteredStudentByIdNumber } from '@api/student-actions';
 
@@ -19,6 +19,8 @@ interface RegisterStudentFormState {
   dateOfBirth?: string;
   sex?: string;
   homeLanguage?: string[];
+  email?: string,
+  phone?: string,
   religion?: string;
   numberOfChildrenInFamily?: number;
   positionInFamily?: number;
@@ -88,64 +90,44 @@ interface RegisterStudentFormState {
   guardianWorkAddress?: string;
 }
 
-// ─── SA ID ↔ Date of Birth helpers ────────────────────────────────────────────
+// ─── Inline field validation state shape ─────────────────────────────────────
+type FieldValidationState = 'idle' | 'checking' | 'taken' | 'available';
 
-/**
- * Given the first 6 digits of a South African ID number (YYMMDD),
- * returns a full date string in "YYYY-MM-DD" format suitable for an
- * HTML date input, or null if the digits don't form a valid date.
- *
- * Year logic: if YY <= current 2-digit year → 2000s, otherwise → 1900s.
- * (e.g. today is 2026: YY 00-26 → 2000-2026, YY 27-99 → 1927-1999)
- */
+interface FieldValidation {
+  state: FieldValidationState;
+  message: string;
+}
+
+// ─── SA ID ↔ Date of Birth helpers ───────────────────────────────────────────
+
 function idDigitsToDOB(digits: string): string | null {
   if (digits.length < 6) return null;
-
   const yy = parseInt(digits.slice(0, 2), 10);
   const mm = parseInt(digits.slice(2, 4), 10);
   const dd = parseInt(digits.slice(4, 6), 10);
-
   if (isNaN(yy) || isNaN(mm) || isNaN(dd)) return null;
   if (mm < 1 || mm > 12) return null;
   if (dd < 1 || dd > 31) return null;
-
   const currentYY = new Date().getFullYear() % 100;
   const fullYear = yy <= currentYY ? 2000 + yy : 1900 + yy;
-
   const month = String(mm).padStart(2, '0');
   const day = String(dd).padStart(2, '0');
-
-  // Validate the date is real (e.g. no Feb 30)
   const date = new Date(`${fullYear}-${month}-${day}`);
   if (
     date.getFullYear() !== fullYear ||
     date.getMonth() + 1 !== mm ||
     date.getDate() !== dd
-  ) {
-    return null;
-  }
-
+  ) return null;
   return `${fullYear}-${month}-${day}`;
 }
 
-/**
- * Given a date string "YYYY-MM-DD", returns the 6-digit YYMMDD prefix
- * used in South African ID numbers.
- */
 function dobToIdPrefix(dob: string): string | null {
   if (!dob || dob.length < 10) return null;
   const [year, month, day] = dob.split('-');
   if (!year || !month || !day) return null;
-  const yy = year.slice(-2); // last 2 digits of year
-  return `${yy}${month}${day}`;
+  return `${year.slice(-2)}${month}${day}`;
 }
 
-/**
- * Given the 7th digit (index 6) of a South African ID number,
- * returns "MALE" or "FEMALE", or null if the digit is not yet available.
- *
- * SA ID gender digit: 0–4 = Female, 5–9 = Male
- */
 function idDigitToSex(idNumber: string): 'MALE' | 'FEMALE' | null {
   if (idNumber.length < 7) return null;
   const genderDigit = parseInt(idNumber[6], 10);
@@ -153,11 +135,82 @@ function idDigitToSex(idNumber: string): 'MALE' | 'FEMALE' | null {
   return genderDigit >= 5 ? 'MALE' : 'FEMALE';
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
+// ─── Field section map (for error location hints) ────────────────────────────
+const FIELD_SECTION_MAP: Record<string, string> = {
+  id_number:                    'Particulars of Child → ID Number',
+  email:                        'Particulars of Child → Primary Email',
+  phone:                        'Particulars of Child → Primary Phone Number',
+  name:                         'Particulars of Child → First Name',
+  surname:                      'Particulars of Child → Surname',
+  date_of_birth:                'Particulars of Child → Date of Birth',
+  sex:                          'Particulars of Child → Sex',
+  religion:                     'Particulars of Child → Religion',
+  care_required:                'Particulars of Child → Care Required',
+  date_of_enrolment:            'Particulars of Child → Date of Enrolment',
+  marital_status:               'Additional Information → Marital Status',
+  mother_email:                 "Parent/Guardian Particulars → Mother's Email",
+  mother_cell:                  "Parent/Guardian Particulars → Mother's Cell Phone",
+  mother_work_phone:            "Parent/Guardian Particulars → Mother's Work Phone",
+  mother_home_phone:            "Parent/Guardian Particulars → Mother's Home Phone",
+  mother_id_number:             "Parent/Guardian Particulars → Mother's ID Number",
+  mother_surname:               "Parent/Guardian Particulars → Mother's Surname",
+  mother_first_names:           "Parent/Guardian Particulars → Mother's First Names",
+  father_email:                 "Parent/Guardian Particulars → Father's Email",
+  father_cell:                  "Parent/Guardian Particulars → Father's Cell Phone",
+  father_work_phone:            "Parent/Guardian Particulars → Father's Work Phone",
+  father_home_phone:            "Parent/Guardian Particulars → Father's Home Phone",
+  father_id_number:             "Parent/Guardian Particulars → Father's ID Number",
+  father_surname:               "Parent/Guardian Particulars → Father's Surname",
+  father_first_names:           "Parent/Guardian Particulars → Father's First Names",
+  guardian_email:               "Parent/Guardian Particulars → Guardian's Email",
+  guardian_cell:                "Parent/Guardian Particulars → Guardian's Cell Phone",
+  guardian_work_phone:          "Parent/Guardian Particulars → Guardian's Work Phone",
+  guardian_home_phone:          "Parent/Guardian Particulars → Guardian's Home Phone",
+  guardian_id_number:           "Parent/Guardian Particulars → Guardian's ID Number",
+  guardian_surname:             "Parent/Guardian Particulars → Guardian's Surname",
+  guardian_first_names:         "Parent/Guardian Particulars → Guardian's First Names",
+  emergency_contact_friend_name:  'Emergency Contact → Friend Name',
+  emergency_contact_friend_cell:  'Emergency Contact → Friend Cell',
+  emergency_contact_kin_name:     'Emergency Contact → Next of Kin Name',
+  emergency_contact_kin_cell:     'Emergency Contact → Next of Kin Cell',
+};
+
+// ─── Reusable inline validation badge ────────────────────────────────────────
+function FieldValidationBadge({ validation }: { validation: FieldValidation }) {
+  if (validation.state === 'idle') return null;
+
+  const config = {
+    checking: {
+      containerClass: 'bg-blue-50 border-blue-200',
+      dotClass: 'border-blue-500 border-b-transparent animate-spin',
+      textClass: 'text-blue-700',
+    },
+    taken: {
+      containerClass: 'bg-red-50 border-red-300',
+      dotClass: 'bg-red-500 rounded-full',
+      textClass: 'text-red-700',
+    },
+    available: {
+      containerClass: 'bg-green-50 border-green-200',
+      dotClass: 'bg-green-500 rounded-full',
+      textClass: 'text-green-700',
+    },
+  }[validation.state];
+
+  return (
+    <div className={`flex items-start gap-2 mt-2 p-2 rounded-md border ${config.containerClass}`}>
+      <div className={`flex-shrink-0 mt-0.5 w-3 h-3 border-2 ${config.dotClass}`} />
+      <p className={`text-xs font-medium leading-snug ${config.textClass}`}>
+        {validation.message}
+      </p>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 export function RegisterStudentForm() {
 
-  //Relationship Options
   const relationshipOptions = [
     { value: "GUARDIAN", label: "GUARDIAN" },
     { value: "GRANDFATHER", label: "GRANDFATHER" },
@@ -174,7 +227,6 @@ export function RegisterStudentForm() {
     { value: "OTHER RELATIVE", label: "OTHER RELATIVE" }
   ];
 
-  // Title options
   const titleOptions = [
     { value: "MR", label: "MR" },
     { value: "MRS", label: "MRS" },
@@ -200,6 +252,8 @@ export function RegisterStudentForm() {
     dateOfBirth: '',
     sex: '',
     homeLanguage: [],
+    email: '',
+    phone: '',
     religion: '',
     numberOfChildrenInFamily: 0,
     positionInFamily: 0,
@@ -269,76 +323,149 @@ export function RegisterStudentForm() {
     guardianWorkAddress: '',
   });
 
+  // ── Inline field validation state ─────────────────────────────────────────
+  const [emailValidation, setEmailValidation] = useState<FieldValidation>({ state: 'idle', message: '' });
+  const [phoneValidation, setPhoneValidation] = useState<FieldValidation>({ state: 'idle', message: '' });
+
+  // ── Student lookup + submission state ──────────────────────────────────────
   const [isLoading, setIsLoading] = useState(false);
   const [studentFound, setStudentFound] = useState<boolean | null>(null);
   const [searchAttempted, setSearchAttempted] = useState(false);
 
-  // Submission status: null = idle, 'success' = registered ok, 'error' = failed
   const [submitStatus, setSubmitStatus] = useState<'success' | 'error' | null>(null);
+  const [submitErrorMessage, setSubmitErrorMessage] = useState<string>('');
+  const [errorField, setErrorField] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
 
-  // Refs to track which field triggered the last update so we don't create
-  // infinite update loops between idNumber ↔ dateOfBirth.
   const lastChangedField = useRef<'idNumber' | 'dateOfBirth' | null>(null);
+  // Track whether the currently loaded data belongs to an existing student
+  // (so we skip the duplicate check for their own email/phone)
+  const existingStudentIdRef = useRef<string | null>(null);
 
-  // ── ID Number change handler ─────────────────────────────────────────────────
+  // ── ID Number change handler ──────────────────────────────────────────────
   const handleIdNumberChange = (idNumber: string) => {
     lastChangedField.current = 'idNumber';
-
-    // Derive DOB from first 6 digits of the ID number
     const derivedDOB = idNumber.length >= 6 ? idDigitsToDOB(idNumber.slice(0, 6)) : null;
-
-    // Derive sex from the 7th digit (index 6): 0–4 = Female, 5–9 = Male
     const derivedSex = idDigitToSex(idNumber);
-
     setRegisteredStudent(prev => ({
       ...prev,
       idNumber,
-      // Only overwrite DOB if we successfully parsed a valid date
       ...(derivedDOB ? { dateOfBirth: derivedDOB } : {}),
-      // Only overwrite sex if digit 7 is present and valid
       ...(derivedSex ? { sex: derivedSex } : {}),
     }));
   };
 
-  // ── Date of Birth change handler ─────────────────────────────────────────────
+  // ── Date of Birth change handler ──────────────────────────────────────────
   const handleDateOfBirthChange = (dob: string) => {
     lastChangedField.current = 'dateOfBirth';
-
-    const prefix = dobToIdPrefix(dob); // e.g. "900115"
-
+    const prefix = dobToIdPrefix(dob);
     setRegisteredStudent(prev => {
       let newIdNumber = prev.idNumber;
-
       if (prefix) {
-        if (prev.idNumber.length <= 6) {
-          // ID field is empty or only has old date digits — replace entirely with prefix
-          newIdNumber = prefix;
-        } else {
-          // ID field has more digits — replace only the first 6 characters
-          newIdNumber = prefix + prev.idNumber.slice(6);
-        }
+        newIdNumber = prev.idNumber.length <= 6 ? prefix : prefix + prev.idNumber.slice(6);
       }
-
-      return {
-        ...prev,
-        dateOfBirth: dob,
-        idNumber: newIdNumber,
-      };
+      return { ...prev, dateOfBirth: dob, idNumber: newIdNumber };
     });
   };
 
-  // ── Debounced student lookup (fires when idNumber changes) ───────────────────
+  // ── Email change handler — triggers debounced live check ─────────────────
+  const handleEmailChange = (email: string) => {
+    setRegisteredStudent(prev => ({ ...prev, email }));
+
+    // Reset to idle immediately on every keystroke
+    setEmailValidation({ state: 'idle', message: '' });
+  };
+
+  // ── Phone change handler — triggers debounced live check ─────────────────
+  const handlePhoneChange = (phone: string) => {
+    setRegisteredStudent(prev => ({ ...prev, phone }));
+    setPhoneValidation({ state: 'idle', message: '' });
+  };
+
+  // ── Debounced email duplicate check ──────────────────────────────────────
   useEffect(() => {
-    // Don't trigger a lookup when the DOB field was the last thing changed
-    // (that update just rewrites the ID prefix, not a real search intent)
+    const email = registeredStudent.email?.trim() ?? '';
+
+    // Don't check if empty, too short, or no @ sign yet
+    if (!email || email.length < 5 || !email.includes('@')) {
+      setEmailValidation({ state: 'idle', message: '' });
+      return;
+    }
+
+    // Don't re-check against the student whose record we loaded
+    const excludeId = existingStudentIdRef.current ?? undefined;
+
+    setEmailValidation({ state: 'checking', message: 'Checking if email is already registered...' });
+
+    const timer = setTimeout(async () => {
+      try {
+        const result = await checkEmailExists(email, excludeId);
+        if (result.exists) {
+          setEmailValidation({
+            state: 'taken',
+            message: `⚠ This email is already registered to ${result.studentName}. Please use a different email or search for the existing student by their ID number above.`,
+          });
+        } else {
+          setEmailValidation({
+            state: 'available',
+            message: '✓ This email address is available.',
+          });
+        }
+      } catch {
+        // Network/server error — don't block the user, just reset
+        setEmailValidation({ state: 'idle', message: '' });
+      }
+    }, 600);
+
+    return () => clearTimeout(timer);
+  }, [registeredStudent.email]);
+
+  // ── Debounced phone duplicate check ──────────────────────────────────────
+  useEffect(() => {
+    const phone = registeredStudent.phone?.trim() ?? '';
+
+    // Don't check until we have at least 7 digits
+    if (!phone || phone.replace(/\D/g, '').length < 7) {
+      setPhoneValidation({ state: 'idle', message: '' });
+      return;
+    }
+
+    const excludeId = existingStudentIdRef.current ?? undefined;
+
+    setPhoneValidation({ state: 'checking', message: 'Checking if phone number is already registered...' });
+
+    const timer = setTimeout(async () => {
+      try {
+        const result = await checkPhoneExists(phone, excludeId);
+        if (result.exists) {
+          setPhoneValidation({
+            state: 'taken',
+            message: `⚠ This phone number is already registered to ${result.studentName}. Please use a different number or search for the existing student by their ID number above.`,
+          });
+        } else {
+          setPhoneValidation({
+            state: 'available',
+            message: '✓ This phone number is available.',
+          });
+        }
+      } catch {
+        setPhoneValidation({ state: 'idle', message: '' });
+      }
+    }, 600);
+
+    return () => clearTimeout(timer);
+  }, [registeredStudent.phone]);
+
+  // ── Debounced student lookup (fires when idNumber changes) ────────────────
+  useEffect(() => {
     if (lastChangedField.current === 'dateOfBirth') return;
 
     const id = registeredStudent.idNumber;
     if (!id || id.length < 6) {
       setStudentFound(null);
       setSearchAttempted(false);
+      existingStudentIdRef.current = null;
       return;
     }
 
@@ -348,6 +475,9 @@ export function RegisterStudentForm() {
       try {
         const student = await getRegisteredStudentByIdNumber(id);
         if (student) {
+          // Store the ID so email/phone checkers can exclude this student
+          existingStudentIdRef.current = student.idNumber;
+
           setRegisteredStudent(prev => ({
             ...prev,
             idNumber: student.idNumber || '',
@@ -357,10 +487,10 @@ export function RegisterStudentForm() {
             dateOfBirth: student.dateOfBirth || '',
             sex: student.sex || '',
             homeLanguage: student.homeLanguage
-              ? (Array.isArray(student.homeLanguage)
-                ? student.homeLanguage
-                : [student.homeLanguage])
+              ? (Array.isArray(student.homeLanguage) ? student.homeLanguage : [student.homeLanguage])
               : [],
+            email: student.email || '',
+            phone: student.phone || '',
             religion: student.religion || '',
             numberOfChildrenInFamily: student.numberOfChildrenInFamily || undefined,
             positionInFamily: student.positionInFamily || undefined,
@@ -429,12 +559,20 @@ export function RegisterStudentForm() {
             guardianHomeAddress: student.guardianHomeAddress || '',
             guardianWorkAddress: student.guardianWorkAddress || '',
           }));
+
+          // Clear the inline validation badges — these values belong to an
+          // existing student so they're not "taken" in a problematic way
+          setEmailValidation({ state: 'idle', message: '' });
+          setPhoneValidation({ state: 'idle', message: '' });
+
           setStudentFound(true);
         } else {
+          existingStudentIdRef.current = null;
           setStudentFound(false);
         }
       } catch (error) {
         console.error('Error fetching student:', error);
+        existingStudentIdRef.current = null;
         setStudentFound(false);
       }
       setIsLoading(false);
@@ -443,91 +581,130 @@ export function RegisterStudentForm() {
     return () => clearTimeout(delayDebounceFn);
   }, [registeredStudent.idNumber]);
 
-  // ── Generic field change handler ─────────────────────────────────────────────
+  // ── Generic field change handler ─────────────────────────────────────────
   const handleRegisterStudentFormChange = (
     field: keyof RegisterStudentFormState,
     value: string | string[] | number
   ) => {
-    // Route special fields through their dedicated handlers
-    if (field === 'idNumber' && typeof value === 'string') {
-      handleIdNumberChange(value);
-      return;
-    }
-    if (field === 'dateOfBirth' && typeof value === 'string') {
-      handleDateOfBirthChange(value);
-      return;
-    }
+    if (field === 'idNumber' && typeof value === 'string') { handleIdNumberChange(value); return; }
+    if (field === 'dateOfBirth' && typeof value === 'string') { handleDateOfBirthChange(value); return; }
+    if (field === 'email' && typeof value === 'string') { handleEmailChange(value); return; }
+    if (field === 'phone' && typeof value === 'string') { handlePhoneChange(value); return; }
     setRegisteredStudent(prev => ({ ...prev, [field]: value }));
   };
 
-  // ── Form submission handler ──────────────────────────────────────────────────
+  // ── Form submission handler ───────────────────────────────────────────────
   const handleSubmit = useCallback(async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
+    // Block submission if either field has a known duplicate
+    if (emailValidation.state === 'taken') {
+      notificationRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setSubmitErrorMessage('Please resolve the duplicate email address before submitting.');
+      setErrorField('email');
+      setSubmitStatus('error');
+      return;
+    }
+    if (phoneValidation.state === 'taken') {
+      notificationRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setSubmitErrorMessage('Please resolve the duplicate phone number before submitting.');
+      setErrorField('phone');
+      setSubmitStatus('error');
+      return;
+    }
+
     setIsSubmitting(true);
     setSubmitStatus(null);
+    setSubmitErrorMessage('');
+    setErrorField(null);
+
+    const scrollToNotification = () =>
+      notificationRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    const showError = (msg: string, field?: string) => {
+      setSubmitErrorMessage(msg);
+      setErrorField(field ?? null);
+      setSubmitStatus('error');
+      scrollToNotification();
+      setTimeout(() => setSubmitStatus(null), 15000);
+    };
 
     try {
       const formData = new FormData(e.currentTarget);
-      await registerStudent(formData);
+      const result = await registerStudent(formData);
+
+      if (result && 'error' in result) {
+        const raw = result.error as string;
+        const field = (result as any).field as string | undefined;
+        showError(raw, field);
+        return;
+      }
+
       setSubmitStatus('success');
-      // Scroll to the top so the user sees the notification
-      notificationRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      // Auto-dismiss after 6 seconds
+      scrollToNotification();
+      // Reset inline validations on success
+      setEmailValidation({ state: 'idle', message: '' });
+      setPhoneValidation({ state: 'idle', message: '' });
       setTimeout(() => setSubmitStatus(null), 6000);
     } catch (err) {
       console.error('Registration error:', err);
-      setSubmitStatus('error');
-      notificationRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      setTimeout(() => setSubmitStatus(null), 6000);
+      showError('An unexpected error occurred. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
-  }, []);
+  }, [emailValidation.state, phoneValidation.state]);
 
-  // ── Success / Error notification banner ──────────────────────────────────────
+  // ── Submit notification banner ────────────────────────────────────────────
   const SubmitNotification = () => {
     if (!submitStatus) return null;
 
     const isSuccess = submitStatus === 'success';
+    const sectionHint = errorField ? FIELD_SECTION_MAP[errorField] : null;
+    const isDuplicateError = submitErrorMessage.toLowerCase().includes('already registered');
 
     return (
-      <div
-        className={`
-          flex items-start gap-4 rounded-xl border p-5 mb-6 shadow-sm
-          transition-all duration-300
-          ${isSuccess
-            ? 'bg-green-50 border-green-300 text-green-800'
-            : 'bg-red-50 border-red-300 text-red-800'}
-        `}
-      >
-        {/* Icon */}
-        <div className={`
-          flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-full text-white text-lg font-bold
-          ${isSuccess ? 'bg-green-500' : 'bg-red-500'}
-        `}>
+      <div className={`flex items-start gap-4 rounded-xl border p-5 mb-6 shadow-sm transition-all duration-300 ${isSuccess ? 'bg-green-50 border-green-300 text-green-800' : 'bg-red-50 border-red-300 text-red-800'}`}>
+        <div className={`flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-full text-white text-lg font-bold ${isSuccess ? 'bg-green-500' : 'bg-red-500'}`}>
           {isSuccess ? '✓' : '✕'}
         </div>
 
-        {/* Text */}
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <p className="font-semibold text-base">
             {isSuccess ? 'Student Successfully Registered!' : 'Registration Failed'}
           </p>
-          <p className="text-sm mt-0.5 opacity-80">
-            {isSuccess
-              ? `${registeredStudent.firstName || 'The student'} ${registeredStudent.surname || ''} has been added to the system.`
-              : 'Something went wrong. Please check the form and try again.'}
-          </p>
+
+          {isSuccess ? (
+            <p className="text-sm mt-0.5 opacity-80">
+              {registeredStudent.firstName || 'The student'} {registeredStudent.surname || ''} has been added to the system.
+            </p>
+          ) : (
+            <>
+              <p className="text-sm mt-1 opacity-90 break-words">
+                {submitErrorMessage || 'Something went wrong. Please check the form and try again.'}
+              </p>
+
+              {sectionHint && (
+                <div className="mt-2 flex items-start gap-2 bg-red-100 border border-red-200 rounded-md px-3 py-2">
+                  <span className="text-base leading-none mt-0.5">📍</span>
+                  <p className="text-xs font-semibold text-red-700">
+                    Location in form: <span className="font-bold">{sectionHint}</span>
+                  </p>
+                </div>
+              )}
+
+              {isDuplicateError && (
+                <p className="text-xs mt-2 font-medium opacity-70">
+                  💡 Tip: Enter the student&apos;s ID number in the ID field above to load their existing record instead of creating a duplicate.
+                </p>
+              )}
+            </>
+          )}
         </div>
 
-        {/* Dismiss button */}
         <button
           type="button"
-          onClick={() => setSubmitStatus(null)}
-          className={`
-            flex-shrink-0 text-xl leading-none font-bold opacity-50 hover:opacity-100 transition-opacity
-            ${isSuccess ? 'text-green-800' : 'text-red-800'}
-          `}
+          onClick={() => { setSubmitStatus(null); setErrorField(null); }}
+          className={`flex-shrink-0 text-xl leading-none font-bold opacity-50 hover:opacity-100 transition-opacity ${isSuccess ? 'text-green-800' : 'text-red-800'}`}
           aria-label="Dismiss notification"
         >
           ×
@@ -536,7 +713,7 @@ export function RegisterStudentForm() {
     );
   };
 
-  // Status display component
+  // ── ID search status indicator ─────────────────────────────────────────────
   const StatusIndicator = () => {
     if (isLoading) {
       return (
@@ -547,15 +724,8 @@ export function RegisterStudentForm() {
       );
     }
     if (!searchAttempted) {
-      return (
-        <div className="mt-2">
-          <span className="text-sm text-gray-500">
-            Enter 6 or more characters to search
-          </span>
-        </div>
-      );
+      return <div className="mt-2"><span className="text-sm text-gray-500">Enter 6 or more characters to search</span></div>;
     }
-
     if (studentFound === true) {
       return (
         <div className="flex items-center mt-2 p-2 bg-green-50 border border-green-200 rounded-md">
@@ -564,7 +734,6 @@ export function RegisterStudentForm() {
         </div>
       );
     }
-
     if (studentFound === false) {
       return (
         <div className="flex items-center mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded-md">
@@ -577,21 +746,15 @@ export function RegisterStudentForm() {
   };
 
   return (
-    <ShowcaseSection
-      title="Register Student Form"
-      className="!p-6.5"
-    >
-      {/* Anchor for scroll-to-top on submit — notification renders here */}
+    <ShowcaseSection title="Register Student Form" className="!p-6.5">
       <div ref={notificationRef}>
         <SubmitNotification />
       </div>
 
       <form onSubmit={handleSubmit}>
-        {/* PARTICULARS OF CHILD */}
-        <ShowcaseSection
-          title="PARTICULARS OF CHILD"
-          className="space-y-5.5 !p-6.5 mb-4.5"
-        >
+
+        {/* ── PARTICULARS OF CHILD ─────────────────────────────────────────── */}
+        <ShowcaseSection title="PARTICULARS OF CHILD" className="space-y-5.5 !p-6.5 mb-4.5">
 
           <div className="mb-6">
             <InputGroup
@@ -618,7 +781,6 @@ export function RegisterStudentForm() {
               onChange={(e) => handleRegisterStudentFormChange('surname', e.target.value)}
               required
             />
-
             <InputGroup
               label="FIRST NAME/S"
               name="name"
@@ -641,7 +803,6 @@ export function RegisterStudentForm() {
               value={registeredStudent.prefferedName}
               onChange={(e) => handleRegisterStudentFormChange('prefferedName', e.target.value)}
             />
-
             <InputGroup
               label="DATE OF BIRTH"
               name="dateOfBirth"
@@ -668,7 +829,6 @@ export function RegisterStudentForm() {
               onChange={(value: string) => handleRegisterStudentFormChange('sex', value)}
               required
             />
-
             <LangaugeMultiSelect
               id="homeLanguage"
               name="homeLanguage"
@@ -679,22 +839,51 @@ export function RegisterStudentForm() {
             />
           </div>
 
+          {/* ── Email with live duplicate check ─────────────────────────── */}
+          <div className="mb-4.5 flex flex-col gap-4.5 xl:flex-row">
+            <div className="w-full xl:w-1/2">
+              <InputGroup
+                label="PRIMARY EMAIL"
+                type="email"
+                name="email"
+                placeholder="Enter primary email address"
+                className="w-full"
+                value={registeredStudent.email}
+                onChange={(e) => handleRegisterStudentFormChange('email', e.target.value)}
+              />
+              <FieldValidationBadge validation={emailValidation} />
+            </div>
+
+            {/* ── Phone with live duplicate check ──────────────────────── */}
+            <div className="w-full xl:w-1/2">
+              <InputGroup
+                label="PRIMARY PHONE NUMBER"
+                type="text"
+                name="phone"
+                placeholder="Enter primary phone number"
+                className="w-full"
+                value={registeredStudent.phone}
+                onChange={(e) => handleRegisterStudentFormChange('phone', e.target.value)}
+                required
+              />
+              <FieldValidationBadge validation={phoneValidation} />
+            </div>
+          </div>
+
           <div className="mb-4.5 flex flex-col gap-4.5 xl:flex-row">
             <Select
               label="RELIGION"
               name="religion"
               placeholder="SELECT RELIGION"
               className="w-full xl:w-full"
-              items={
-                [
-                  { label: "CHRISTIANITY", value: "CHRISTIANITY" },
-                  { label: "ISLAM", value: "ISLAM" },
-                  { label: "HINDUISM", value: "HINDUISM" },
-                  { label: "BUDDHISM", value: "BUDDHISM" },
-                  { label: "JUDAISM", value: "JUDAISM" },
-                  { label: "OTHER", value: "OTHER" },
-                ]
-              }
+              items={[
+                { label: "CHRISTIANITY", value: "CHRISTIANITY" },
+                { label: "ISLAM", value: "ISLAM" },
+                { label: "HINDUISM", value: "HINDUISM" },
+                { label: "BUDDHISM", value: "BUDDHISM" },
+                { label: "JUDAISM", value: "JUDAISM" },
+                { label: "OTHER", value: "OTHER" },
+              ]}
               value={registeredStudent.religion}
               onChange={(e) => handleRegisterStudentFormChange('religion', e)}
             />
@@ -710,7 +899,6 @@ export function RegisterStudentForm() {
               value={registeredStudent.numberOfChildrenInFamily !== undefined ? String(registeredStudent.numberOfChildrenInFamily) : undefined}
               onChange={(e) => handleRegisterStudentFormChange('numberOfChildrenInFamily', parseInt(e.target.value) || '')}
             />
-
             <InputGroup
               label="POSITION IN FAMILY"
               type="number"
@@ -731,7 +919,6 @@ export function RegisterStudentForm() {
               value={registeredStudent.authorizedToBring}
               onChange={(value: string[]) => handleRegisterStudentFormChange('authorizedToBring', value)}
             />
-
             <RelationsMultiSelect
               id="collectchildmultiselect"
               name="authorizedToCollect"
@@ -762,10 +949,7 @@ export function RegisterStudentForm() {
             onChange={(e) => handleRegisterStudentFormChange('intendedPrimarySchool', e.target.value)}
           />
 
-          <ShowcaseSection
-            title="PLEASE INDICATE THE CARE REQUIRED"
-            className="space-y-5.5 !p-4"
-          >
+          <ShowcaseSection title="PLEASE INDICATE THE CARE REQUIRED" className="space-y-5.5 !p-4">
             <div className="flex flex-col gap-4 xl:flex-row">
               <Select
                 label="Select Care Required"
@@ -792,7 +976,6 @@ export function RegisterStudentForm() {
               value={registeredStudent.dateOfEnrolment}
               onChange={(e) => handleRegisterStudentFormChange('dateOfEnrolment', e.target.value)}
             />
-
             <InputGroup
               label="AGE AT ENROLMENT"
               type="number"
@@ -805,14 +988,13 @@ export function RegisterStudentForm() {
           </div>
         </ShowcaseSection>
 
-        {/* CONTACT PERSON OTHER THAN PARENTS */}
+        {/* ── CONTACT PERSON OTHER THAN PARENTS ────────────────────────────── */}
         <ShowcaseSectionDesc
           title="CONTACT PERSON OTHER THAN PARENTS"
           className="space-y-5.5 !p-6.5 mb-4.5"
           description="In case of an emergency a responsible person should be on standby."
         >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            {/* Friend Column */}
             <div>
               <h4 className="font-semibold mb-4 text-gray-700">Friend</h4>
               <div className="space-y-4">
@@ -824,7 +1006,6 @@ export function RegisterStudentForm() {
                   value={registeredStudent.emergencyContactFriendName}
                   onChange={(e) => handleRegisterStudentFormChange('emergencyContactFriendName', e.target.value)}
                 />
-
                 <Select
                   name="emergencyContactFriendRelationship"
                   label="Relationship"
@@ -833,7 +1014,6 @@ export function RegisterStudentForm() {
                   value={registeredStudent.emergencyContactFriendRelationship}
                   onChange={(value: string) => handleRegisterStudentFormChange('emergencyContactFriendRelationship', value)}
                 />
-
                 <TextAreaGroup
                   label="Physical Address"
                   name="emergencyContactFriendAddress"
@@ -868,7 +1048,6 @@ export function RegisterStudentForm() {
               </div>
             </div>
 
-            {/* Next of Kin Column */}
             <div>
               <h4 className="font-semibold mb-4 text-gray-700">Next of Kin</h4>
               <div className="space-y-4">
@@ -880,7 +1059,6 @@ export function RegisterStudentForm() {
                   value={registeredStudent.emergencyContactKinName}
                   onChange={(e) => handleRegisterStudentFormChange('emergencyContactKinName', e.target.value)}
                 />
-
                 <Select
                   name="emergencyContactKinRelationship"
                   label="Relationship"
@@ -889,7 +1067,6 @@ export function RegisterStudentForm() {
                   value={registeredStudent.emergencyContactKinRelationship}
                   onChange={(value: string) => handleRegisterStudentFormChange('emergencyContactKinRelationship', value)}
                 />
-
                 <TextAreaGroup
                   label="Physical Address"
                   name="emergencyContactKinAddress"
@@ -926,7 +1103,7 @@ export function RegisterStudentForm() {
           </div>
         </ShowcaseSectionDesc>
 
-        {/* TRANSPORT */}
+        {/* ── TRANSPORT ─────────────────────────────────────────────────────── */}
         <ShowcaseSectionDesc
           title="TRANSPORT"
           className="space-y-5.5 !p-6.5 mb-4.5"
@@ -943,7 +1120,6 @@ export function RegisterStudentForm() {
                 value={registeredStudent[`transportContact${index}Name` as keyof RegisterStudentFormState] as string}
                 onChange={(e) => handleRegisterStudentFormChange(`transportContact${index}Name` as keyof RegisterStudentFormState, e.target.value)}
               />
-
               <InputGroup
                 label="Telephone no."
                 type="text"
@@ -966,355 +1142,69 @@ export function RegisterStudentForm() {
           onChange={(e) => handleRegisterStudentFormChange('specialInstructions', e.target.value)}
         />
 
-        {/* PARENTS/GUARDIAN PARTICULARS */}
-        <ShowcaseSection
-          title="PARTICULARS OF PARENTS/GUARDIAN"
-          className="space-y-5.5 !p-6.5 mb-4.5"
-        >
-          {/* Mother Information */}
+        {/* ── PARTICULARS OF PARENTS/GUARDIAN ──────────────────────────────── */}
+        <ShowcaseSection title="PARTICULARS OF PARENTS/GUARDIAN" className="space-y-5.5 !p-6.5 mb-4.5">
+
+          {/* Mother */}
           <div className="mb-6">
             <h4 className="font-semibold mb-4 text-gray-700">MOTHER&apos;S INFORMATION</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Select
-                label="Title"
-                name="motherTitle"
-                items={titleOptions}
-                placeholder="Mrs, Ms, etc."
-                value={registeredStudent.motherTitle}
-                onChange={(e) => handleRegisterStudentFormChange('motherTitle', e)}
-              />
-
-              <InputGroup
-                label="Surname"
-                name="motherSurname"
-                type="text"
-                placeholder="Mother's surname"
-                value={registeredStudent.motherSurname}
-                onChange={(e) => handleRegisterStudentFormChange('motherSurname', e.target.value)}
-              />
-
-              <InputGroup
-                label="First Names"
-                name="motherFirstNames"
-                type="text"
-                placeholder="Mother's first names"
-                value={registeredStudent.motherFirstNames}
-                onChange={(e) => handleRegisterStudentFormChange('motherFirstNames', e.target.value)}
-              />
-
-              <InputGroup
-                label="ID Number"
-                name="motherIdNumber"
-                type="text"
-                placeholder="Mother's ID number"
-                value={registeredStudent.motherIdNumber}
-                onChange={(e) => handleRegisterStudentFormChange('motherIdNumber', e.target.value)}
-              />
-
-              <InputGroup
-                label="Occupation"
-                name="motherOccupation"
-                type="text"
-                placeholder="Occupation"
-                value={registeredStudent.motherOccupation}
-                onChange={(e) => handleRegisterStudentFormChange('motherOccupation', e.target.value)}
-              />
-
-              <InputGroup
-                label="Employer"
-                name="motherEmployer"
-                type="text"
-                placeholder="Employer"
-                value={registeredStudent.motherEmployer}
-                onChange={(e) => handleRegisterStudentFormChange('motherEmployer', e.target.value)}
-              />
-
-              <InputGroup
-                label="Work Phone"
-                name="motherWorkPhone"
-                type="text"
-                placeholder="Work phone"
-                value={registeredStudent.motherWorkPhone}
-                onChange={(e) => handleRegisterStudentFormChange('motherWorkPhone', e.target.value)}
-              />
-
-              <InputGroup
-                label="Home Phone"
-                name="motherHomePhone"
-                type="text"
-                placeholder="Home phone"
-                value={registeredStudent.motherHomePhone}
-                onChange={(e) => handleRegisterStudentFormChange('motherHomePhone', e.target.value)}
-              />
-
-              <InputGroup
-                label="Cell Phone"
-                name="motherCell"
-                type="text"
-                placeholder="Cell phone"
-                value={registeredStudent.motherCell}
-                onChange={(e) => handleRegisterStudentFormChange('motherCell', e.target.value)}
-              />
-
-              <InputGroup
-                label="Email"
-                name="motherEmail"
-                type="email"
-                placeholder="Email address"
-                value={registeredStudent.motherEmail}
-                onChange={(e) => handleRegisterStudentFormChange('motherEmail', e.target.value)}
-              />
-
-              <TextAreaGroup
-                label="Home Address"
-                name="motherHomeAddress"
-                placeholder="Home address"
-                value={registeredStudent.motherHomeAddress}
-                onChange={(e) => handleRegisterStudentFormChange('motherHomeAddress', e.target.value)}
-              />
-
-              <TextAreaGroup
-                label="Work Address"
-                name="motherWorkAddress"
-                placeholder="Work address"
-                value={registeredStudent.motherWorkAddress}
-                onChange={(e) => handleRegisterStudentFormChange('motherWorkAddress', e.target.value)}
-              />
+              <Select label="Title" name="motherTitle" items={titleOptions} placeholder="Mrs, Ms, etc." value={registeredStudent.motherTitle} onChange={(e) => handleRegisterStudentFormChange('motherTitle', e)} />
+              <InputGroup label="Surname" name="motherSurname" type="text" placeholder="Mother's surname" value={registeredStudent.motherSurname} onChange={(e) => handleRegisterStudentFormChange('motherSurname', e.target.value)} />
+              <InputGroup label="First Names" name="motherFirstNames" type="text" placeholder="Mother's first names" value={registeredStudent.motherFirstNames} onChange={(e) => handleRegisterStudentFormChange('motherFirstNames', e.target.value)} />
+              <InputGroup label="ID Number" name="motherIdNumber" type="text" placeholder="Mother's ID number" value={registeredStudent.motherIdNumber} onChange={(e) => handleRegisterStudentFormChange('motherIdNumber', e.target.value)} />
+              <InputGroup label="Occupation" name="motherOccupation" type="text" placeholder="Occupation" value={registeredStudent.motherOccupation} onChange={(e) => handleRegisterStudentFormChange('motherOccupation', e.target.value)} />
+              <InputGroup label="Employer" name="motherEmployer" type="text" placeholder="Employer" value={registeredStudent.motherEmployer} onChange={(e) => handleRegisterStudentFormChange('motherEmployer', e.target.value)} />
+              <InputGroup label="Work Phone" name="motherWorkPhone" type="text" placeholder="Work phone" value={registeredStudent.motherWorkPhone} onChange={(e) => handleRegisterStudentFormChange('motherWorkPhone', e.target.value)} />
+              <InputGroup label="Home Phone" name="motherHomePhone" type="text" placeholder="Home phone" value={registeredStudent.motherHomePhone} onChange={(e) => handleRegisterStudentFormChange('motherHomePhone', e.target.value)} />
+              <InputGroup label="Cell Phone" name="motherCell" type="text" placeholder="Cell phone" value={registeredStudent.motherCell} onChange={(e) => handleRegisterStudentFormChange('motherCell', e.target.value)} />
+              <InputGroup label="Email" name="motherEmail" type="email" placeholder="Email address" value={registeredStudent.motherEmail} onChange={(e) => handleRegisterStudentFormChange('motherEmail', e.target.value)} />
+              <TextAreaGroup label="Home Address" name="motherHomeAddress" placeholder="Home address" value={registeredStudent.motherHomeAddress} onChange={(e) => handleRegisterStudentFormChange('motherHomeAddress', e.target.value)} />
+              <TextAreaGroup label="Work Address" name="motherWorkAddress" placeholder="Work address" value={registeredStudent.motherWorkAddress} onChange={(e) => handleRegisterStudentFormChange('motherWorkAddress', e.target.value)} />
             </div>
           </div>
 
-          {/* Father Information */}
+          {/* Father */}
           <div className="mb-6">
             <h4 className="font-semibold mb-4 text-gray-700">FATHER&apos;S INFORMATION</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Select
-                label="Title"
-                name="fatherTitle"
-                items={titleOptions}
-                placeholder="Mr, Dr, etc."
-                value={registeredStudent.fatherTitle}
-                onChange={(e) => handleRegisterStudentFormChange('fatherTitle', e)}
-              />
-
-              <InputGroup
-                label="Surname"
-                name="fatherSurname"
-                type="text"
-                placeholder="Father's surname"
-                value={registeredStudent.fatherSurname}
-                onChange={(e) => handleRegisterStudentFormChange('fatherSurname', e.target.value)}
-              />
-
-              <InputGroup
-                label="First Names"
-                name="fatherFirstNames"
-                type="text"
-                placeholder="Father's first names"
-                value={registeredStudent.fatherFirstNames}
-                onChange={(e) => handleRegisterStudentFormChange('fatherFirstNames', e.target.value)}
-              />
-
-              <InputGroup
-                label="ID Number"
-                name="fatherIdNumber"
-                type="text"
-                placeholder="Father's ID number"
-                value={registeredStudent.fatherIdNumber}
-                onChange={(e) => handleRegisterStudentFormChange('fatherIdNumber', e.target.value)}
-              />
-
-              <InputGroup
-                label="Occupation"
-                name="fatherOccupation"
-                type="text"
-                placeholder="Occupation"
-                value={registeredStudent.fatherOccupation}
-                onChange={(e) => handleRegisterStudentFormChange('fatherOccupation', e.target.value)}
-              />
-
-              <InputGroup
-                label="Employer"
-                name="fatherEmployer"
-                type="text"
-                placeholder="Employer"
-                value={registeredStudent.fatherEmployer}
-                onChange={(e) => handleRegisterStudentFormChange('fatherEmployer', e.target.value)}
-              />
-
-              <InputGroup
-                label="Work Phone"
-                name="fatherWorkPhone"
-                type="text"
-                placeholder="Work phone"
-                value={registeredStudent.fatherWorkPhone}
-                onChange={(e) => handleRegisterStudentFormChange('fatherWorkPhone', e.target.value)}
-              />
-
-              <InputGroup
-                label="Home Phone"
-                name="fatherHomePhone"
-                type="text"
-                placeholder="Home phone"
-                value={registeredStudent.fatherHomePhone}
-                onChange={(e) => handleRegisterStudentFormChange('fatherHomePhone', e.target.value)}
-              />
-
-              <InputGroup
-                label="Cell Phone"
-                name="fatherCell"
-                type="text"
-                placeholder="Cell phone"
-                value={registeredStudent.fatherCell}
-                onChange={(e) => handleRegisterStudentFormChange('fatherCell', e.target.value)}
-              />
-
-              <InputGroup
-                label="Email"
-                name="fatherEmail"
-                type="email"
-                placeholder="Email address"
-                value={registeredStudent.fatherEmail}
-                onChange={(e) => handleRegisterStudentFormChange('fatherEmail', e.target.value)}
-              />
-
-              <TextAreaGroup
-                label="Home Address"
-                name="fatherHomeAddress"
-                placeholder="Home address"
-                value={registeredStudent.fatherHomeAddress}
-                onChange={(e) => handleRegisterStudentFormChange('fatherHomeAddress', e.target.value)}
-              />
-
-              <TextAreaGroup
-                label="Work Address"
-                name="fatherWorkAddress"
-                placeholder="Work address"
-                value={registeredStudent.fatherWorkAddress}
-                onChange={(e) => handleRegisterStudentFormChange('fatherWorkAddress', e.target.value)}
-              />
-
+              <Select label="Title" name="fatherTitle" items={titleOptions} placeholder="Mr, Dr, etc." value={registeredStudent.fatherTitle} onChange={(e) => handleRegisterStudentFormChange('fatherTitle', e)} />
+              <InputGroup label="Surname" name="fatherSurname" type="text" placeholder="Father's surname" value={registeredStudent.fatherSurname} onChange={(e) => handleRegisterStudentFormChange('fatherSurname', e.target.value)} />
+              <InputGroup label="First Names" name="fatherFirstNames" type="text" placeholder="Father's first names" value={registeredStudent.fatherFirstNames} onChange={(e) => handleRegisterStudentFormChange('fatherFirstNames', e.target.value)} />
+              <InputGroup label="ID Number" name="fatherIdNumber" type="text" placeholder="Father's ID number" value={registeredStudent.fatherIdNumber} onChange={(e) => handleRegisterStudentFormChange('fatherIdNumber', e.target.value)} />
+              <InputGroup label="Occupation" name="fatherOccupation" type="text" placeholder="Occupation" value={registeredStudent.fatherOccupation} onChange={(e) => handleRegisterStudentFormChange('fatherOccupation', e.target.value)} />
+              <InputGroup label="Employer" name="fatherEmployer" type="text" placeholder="Employer" value={registeredStudent.fatherEmployer} onChange={(e) => handleRegisterStudentFormChange('fatherEmployer', e.target.value)} />
+              <InputGroup label="Work Phone" name="fatherWorkPhone" type="text" placeholder="Work phone" value={registeredStudent.fatherWorkPhone} onChange={(e) => handleRegisterStudentFormChange('fatherWorkPhone', e.target.value)} />
+              <InputGroup label="Home Phone" name="fatherHomePhone" type="text" placeholder="Home phone" value={registeredStudent.fatherHomePhone} onChange={(e) => handleRegisterStudentFormChange('fatherHomePhone', e.target.value)} />
+              <InputGroup label="Cell Phone" name="fatherCell" type="text" placeholder="Cell phone" value={registeredStudent.fatherCell} onChange={(e) => handleRegisterStudentFormChange('fatherCell', e.target.value)} />
+              <InputGroup label="Email" name="fatherEmail" type="email" placeholder="Email address" value={registeredStudent.fatherEmail} onChange={(e) => handleRegisterStudentFormChange('fatherEmail', e.target.value)} />
+              <TextAreaGroup label="Home Address" name="fatherHomeAddress" placeholder="Home address" value={registeredStudent.fatherHomeAddress} onChange={(e) => handleRegisterStudentFormChange('fatherHomeAddress', e.target.value)} />
+              <TextAreaGroup label="Work Address" name="fatherWorkAddress" placeholder="Work address" value={registeredStudent.fatherWorkAddress} onChange={(e) => handleRegisterStudentFormChange('fatherWorkAddress', e.target.value)} />
             </div>
           </div>
 
-          {/* Guardian Information */}
+          {/* Guardian */}
           <div>
             <h4 className="font-semibold mb-4 text-gray-700">GUARDIAN&apos;S INFORMATION (if applicable)</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Select
-                label="Title"
-                name="guardianTitle"
-                items={titleOptions}
-                placeholder="Mr, Mrs, etc."
-                value={registeredStudent.guardianTitle}
-                onChange={(e) => handleRegisterStudentFormChange('guardianTitle', e)}
-              />
-
-              <InputGroup
-                label="Surname"
-                name="guardianSurname"
-                type="text"
-                placeholder="Guardian's surname"
-                value={registeredStudent.guardianSurname}
-                onChange={(e) => handleRegisterStudentFormChange('guardianSurname', e.target.value)}
-              />
-
-              <InputGroup
-                label="First Names"
-                name="guardianFirstNames"
-                type="text"
-                placeholder="Guardian's first names"
-                value={registeredStudent.guardianFirstNames}
-                onChange={(e) => handleRegisterStudentFormChange('guardianFirstNames', e.target.value)}
-              />
-
-              <InputGroup
-                label="ID Number"
-                name="guardianIdNumber"
-                type="text"
-                placeholder="Guardian's ID number"
-                value={registeredStudent.guardianIdNumber}
-                onChange={(e) => handleRegisterStudentFormChange('guardianIdNumber', e.target.value)}
-              />
-
-              <InputGroup
-                label="Occupation"
-                name="guardianOccupation"
-                type="text"
-                placeholder="Occupation"
-                value={registeredStudent.guardianOccupation}
-                onChange={(e) => handleRegisterStudentFormChange('guardianOccupation', e.target.value)}
-              />
-
-              <InputGroup
-                label="Employer"
-                name="guardianEmployer"
-                type="text"
-                placeholder="Employer"
-                value={registeredStudent.guardianEmployer}
-                onChange={(e) => handleRegisterStudentFormChange('guardianEmployer', e.target.value)}
-              />
-
-              <InputGroup
-                label="Work Phone"
-                name="guardianWorkPhone"
-                type="text"
-                placeholder="Work phone"
-                value={registeredStudent.guardianWorkPhone}
-                onChange={(e) => handleRegisterStudentFormChange('guardianWorkPhone', e.target.value)}
-              />
-
-              <InputGroup
-                label="Home Phone"
-                name="guardianHomePhone"
-                type="text"
-                placeholder="Home phone"
-                value={registeredStudent.guardianHomePhone}
-                onChange={(e) => handleRegisterStudentFormChange('guardianHomePhone', e.target.value)}
-              />
-
-              <InputGroup
-                label="Cell Phone"
-                name="guardianCell"
-                type="text"
-                placeholder="Cell phone"
-                value={registeredStudent.guardianCell}
-                onChange={(e) => handleRegisterStudentFormChange('guardianCell', e.target.value)}
-              />
-
-              <InputGroup
-                label="Email"
-                name="guardianEmail"
-                type="email"
-                placeholder="Email address"
-                value={registeredStudent.guardianEmail}
-                onChange={(e) => handleRegisterStudentFormChange('guardianEmail', e.target.value)}
-              />
-
-              <TextAreaGroup
-                label="Home Address"
-                name="guardianHomeAddress"
-                placeholder="Home address"
-                value={registeredStudent.guardianHomeAddress}
-                onChange={(e) => handleRegisterStudentFormChange('guardianHomeAddress', e.target.value)}
-              />
-
-              <TextAreaGroup
-                label="Work Address"
-                name="guardianWorkAddress"
-                placeholder="Work address"
-                value={registeredStudent.guardianWorkAddress}
-                onChange={(e) => handleRegisterStudentFormChange('guardianWorkAddress', e.target.value)}
-              />
-
+              <Select label="Title" name="guardianTitle" items={titleOptions} placeholder="Mr, Mrs, etc." value={registeredStudent.guardianTitle} onChange={(e) => handleRegisterStudentFormChange('guardianTitle', e)} />
+              <InputGroup label="Surname" name="guardianSurname" type="text" placeholder="Guardian's surname" value={registeredStudent.guardianSurname} onChange={(e) => handleRegisterStudentFormChange('guardianSurname', e.target.value)} />
+              <InputGroup label="First Names" name="guardianFirstNames" type="text" placeholder="Guardian's first names" value={registeredStudent.guardianFirstNames} onChange={(e) => handleRegisterStudentFormChange('guardianFirstNames', e.target.value)} />
+              <InputGroup label="ID Number" name="guardianIdNumber" type="text" placeholder="Guardian's ID number" value={registeredStudent.guardianIdNumber} onChange={(e) => handleRegisterStudentFormChange('guardianIdNumber', e.target.value)} />
+              <InputGroup label="Occupation" name="guardianOccupation" type="text" placeholder="Occupation" value={registeredStudent.guardianOccupation} onChange={(e) => handleRegisterStudentFormChange('guardianOccupation', e.target.value)} />
+              <InputGroup label="Employer" name="guardianEmployer" type="text" placeholder="Employer" value={registeredStudent.guardianEmployer} onChange={(e) => handleRegisterStudentFormChange('guardianEmployer', e.target.value)} />
+              <InputGroup label="Work Phone" name="guardianWorkPhone" type="text" placeholder="Work phone" value={registeredStudent.guardianWorkPhone} onChange={(e) => handleRegisterStudentFormChange('guardianWorkPhone', e.target.value)} />
+              <InputGroup label="Home Phone" name="guardianHomePhone" type="text" placeholder="Home phone" value={registeredStudent.guardianHomePhone} onChange={(e) => handleRegisterStudentFormChange('guardianHomePhone', e.target.value)} />
+              <InputGroup label="Cell Phone" name="guardianCell" type="text" placeholder="Cell phone" value={registeredStudent.guardianCell} onChange={(e) => handleRegisterStudentFormChange('guardianCell', e.target.value)} />
+              <InputGroup label="Email" name="guardianEmail" type="email" placeholder="Email address" value={registeredStudent.guardianEmail} onChange={(e) => handleRegisterStudentFormChange('guardianEmail', e.target.value)} />
+              <TextAreaGroup label="Home Address" name="guardianHomeAddress" placeholder="Home address" value={registeredStudent.guardianHomeAddress} onChange={(e) => handleRegisterStudentFormChange('guardianHomeAddress', e.target.value)} />
+              <TextAreaGroup label="Work Address" name="guardianWorkAddress" placeholder="Work address" value={registeredStudent.guardianWorkAddress} onChange={(e) => handleRegisterStudentFormChange('guardianWorkAddress', e.target.value)} />
             </div>
           </div>
         </ShowcaseSection>
 
-        {/* ADDITIONAL INFORMATION */}
-        <ShowcaseSection
-          title="ADDITIONAL INFORMATION"
-          className="space-y-5.5 !p-6.5 mb-4.5"
-        >
+        {/* ── ADDITIONAL INFORMATION ────────────────────────────────────────── */}
+        <ShowcaseSection title="ADDITIONAL INFORMATION" className="space-y-5.5 !p-6.5 mb-4.5">
           <div className="mb-4.5 flex flex-col gap-4.5 xl:flex-row">
             <Select
               label="MARITAL STATUS OF PARENTS"
@@ -1331,7 +1221,6 @@ export function RegisterStudentForm() {
               value={registeredStudent.maritalStatus}
               onChange={(value: string) => handleRegisterStudentFormChange('maritalStatus', value)}
             />
-
             <RelationsMultiSelect
               label="WITH WHOM DOES THE CHILD LIVE?"
               id="childliveswithmultiselect"
@@ -1343,9 +1232,10 @@ export function RegisterStudentForm() {
           </div>
         </ShowcaseSection>
 
+        {/* Submit button — disabled if a duplicate is detected */}
         <button
           type="submit"
-          disabled={isSubmitting}
+          disabled={isSubmitting || emailValidation.state === 'taken' || phoneValidation.state === 'taken'}
           className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-primary p-[13px] font-medium text-white hover:bg-opacity-90 disabled:opacity-70 disabled:cursor-not-allowed transition-opacity"
         >
           {isSubmitting ? (
@@ -1353,10 +1243,15 @@ export function RegisterStudentForm() {
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
               Registering...
             </>
+          ) : emailValidation.state === 'taken' ? (
+            '⚠ Duplicate Email — Please Fix Before Submitting'
+          ) : phoneValidation.state === 'taken' ? (
+            '⚠ Duplicate Phone Number — Please Fix Before Submitting'
           ) : (
             'Register Student'
           )}
         </button>
+
       </form>
     </ShowcaseSection>
   );
