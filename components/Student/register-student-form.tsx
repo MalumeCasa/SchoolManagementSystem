@@ -8,7 +8,7 @@ import { ShowcaseSectionDesc } from "@/components/Layouts/showcase-section";
 import LangaugeMultiSelect, { languageOptions } from "@components/FormElements/MultiSelect/LangaugeMultiSelect";
 import RelationsMultiSelect from "@/components/FormElements/MultiSelect/RelationsMultiSelect";
 import { registerStudent } from "@api/student-actions";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getRegisteredStudentByIdNumber } from '@api/student-actions';
 
 interface RegisterStudentFormState {
@@ -87,6 +87,60 @@ interface RegisterStudentFormState {
   guardianHomeAddress?: string;
   guardianWorkAddress?: string;
 }
+
+// ─── SA ID ↔ Date of Birth helpers ────────────────────────────────────────────
+
+/**
+ * Given the first 6 digits of a South African ID number (YYMMDD),
+ * returns a full date string in "YYYY-MM-DD" format suitable for an
+ * HTML date input, or null if the digits don't form a valid date.
+ *
+ * Year logic: if YY <= current 2-digit year → 2000s, otherwise → 1900s.
+ * (e.g. today is 2026: YY 00-26 → 2000-2026, YY 27-99 → 1927-1999)
+ */
+function idDigitsToDOB(digits: string): string | null {
+  if (digits.length < 6) return null;
+
+  const yy = parseInt(digits.slice(0, 2), 10);
+  const mm = parseInt(digits.slice(2, 4), 10);
+  const dd = parseInt(digits.slice(4, 6), 10);
+
+  if (isNaN(yy) || isNaN(mm) || isNaN(dd)) return null;
+  if (mm < 1 || mm > 12) return null;
+  if (dd < 1 || dd > 31) return null;
+
+  const currentYY = new Date().getFullYear() % 100;
+  const fullYear = yy <= currentYY ? 2000 + yy : 1900 + yy;
+
+  const month = String(mm).padStart(2, '0');
+  const day = String(dd).padStart(2, '0');
+
+  // Validate the date is real (e.g. no Feb 30)
+  const date = new Date(`${fullYear}-${month}-${day}`);
+  if (
+    date.getFullYear() !== fullYear ||
+    date.getMonth() + 1 !== mm ||
+    date.getDate() !== dd
+  ) {
+    return null;
+  }
+
+  return `${fullYear}-${month}-${day}`;
+}
+
+/**
+ * Given a date string "YYYY-MM-DD", returns the 6-digit YYMMDD prefix
+ * used in South African ID numbers.
+ */
+function dobToIdPrefix(dob: string): string | null {
+  if (!dob || dob.length < 10) return null;
+  const [year, month, day] = dob.split('-');
+  if (!year || !month || !day) return null;
+  const yy = year.slice(-2); // last 2 digits of year
+  return `${yy}${month}${day}`;
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
 
 export function RegisterStudentForm() {
 
@@ -200,26 +254,76 @@ export function RegisterStudentForm() {
     guardianEmail: '',
     guardianHomeAddress: '',
     guardianWorkAddress: '',
-  })
+  });
 
   const [isLoading, setIsLoading] = useState(false);
   const [studentFound, setStudentFound] = useState<boolean | null>(null);
   const [searchAttempted, setSearchAttempted] = useState(false);
 
-  // Function to handle ID number change and search
-  const handleIdNumberChange = async (idNumber: string) => {
+  // Refs to track which field triggered the last update so we don't create
+  // infinite update loops between idNumber ↔ dateOfBirth.
+  const lastChangedField = useRef<'idNumber' | 'dateOfBirth' | null>(null);
+
+  // ── ID Number change handler ─────────────────────────────────────────────────
+  const handleIdNumberChange = (idNumber: string) => {
+    lastChangedField.current = 'idNumber';
+
+    // Derive DOB from first 6 digits of the ID number
+    const derivedDOB = idNumber.length >= 6 ? idDigitsToDOB(idNumber.slice(0, 6)) : null;
+
     setRegisteredStudent(prev => ({
       ...prev,
       idNumber,
+      // Only overwrite DOB if we successfully parsed a valid date
+      ...(derivedDOB ? { dateOfBirth: derivedDOB } : {}),
     }));
+  };
 
-    // Only search if ID number is not empty and has reasonable length
-    if (idNumber.length >= 6) {
+  // ── Date of Birth change handler ─────────────────────────────────────────────
+  const handleDateOfBirthChange = (dob: string) => {
+    lastChangedField.current = 'dateOfBirth';
+
+    const prefix = dobToIdPrefix(dob); // e.g. "900115"
+
+    setRegisteredStudent(prev => {
+      let newIdNumber = prev.idNumber;
+
+      if (prefix) {
+        if (prev.idNumber.length <= 6) {
+          // ID field is empty or only has old date digits — replace entirely with prefix
+          newIdNumber = prefix;
+        } else {
+          // ID field has more digits — replace only the first 6 characters
+          newIdNumber = prefix + prev.idNumber.slice(6);
+        }
+      }
+
+      return {
+        ...prev,
+        dateOfBirth: dob,
+        idNumber: newIdNumber,
+      };
+    });
+  };
+
+  // ── Debounced student lookup (fires when idNumber changes) ───────────────────
+  useEffect(() => {
+    // Don't trigger a lookup when the DOB field was the last thing changed
+    // (that update just rewrites the ID prefix, not a real search intent)
+    if (lastChangedField.current === 'dateOfBirth') return;
+
+    const id = registeredStudent.idNumber;
+    if (!id || id.length < 6) {
+      setStudentFound(null);
+      setSearchAttempted(false);
+      return;
+    }
+
+    const delayDebounceFn = setTimeout(async () => {
       setIsLoading(true);
       setSearchAttempted(true);
       try {
-        const student = await getRegisteredStudentByIdNumber(idNumber);
-
+        const student = await getRegisteredStudentByIdNumber(id);
         if (student) {
           setRegisteredStudent(prev => ({
             ...prev,
@@ -301,7 +405,6 @@ export function RegisterStudentForm() {
             guardianEmail: student.guardianEmail || '',
             guardianHomeAddress: student.guardianHomeAddress || '',
             guardianWorkAddress: student.guardianWorkAddress || '',
-
           }));
           setStudentFound(true);
         } else {
@@ -312,28 +415,26 @@ export function RegisterStudentForm() {
         setStudentFound(false);
       }
       setIsLoading(false);
-    } else {
-      setStudentFound(null);
-      setSearchAttempted(false);
-    }
-  };
-
-  // Debounce the ID number search to avoid too many API calls
-  useEffect(() => {
-    const delayDebounceFn = setTimeout(() => {
-      if (registeredStudent.idNumber) {
-        handleIdNumberChange(registeredStudent.idNumber);
-      }
-    }, 500); // 500ms delay
+    }, 500);
 
     return () => clearTimeout(delayDebounceFn);
   }, [registeredStudent.idNumber]);
 
-  const handleRegisterStudentFormChange = (field: keyof RegisterStudentFormState, value: string | string[] | number) => {
-    setRegisteredStudent(prev => ({
-      ...prev,
-      [field]: value,
-    }));
+  // ── Generic field change handler ─────────────────────────────────────────────
+  const handleRegisterStudentFormChange = (
+    field: keyof RegisterStudentFormState,
+    value: string | string[] | number
+  ) => {
+    // Route special fields through their dedicated handlers
+    if (field === 'idNumber' && typeof value === 'string') {
+      handleIdNumberChange(value);
+      return;
+    }
+    if (field === 'dateOfBirth' && typeof value === 'string') {
+      handleDateOfBirthChange(value);
+      return;
+    }
+    setRegisteredStudent(prev => ({ ...prev, [field]: value }));
   };
 
   // Status display component

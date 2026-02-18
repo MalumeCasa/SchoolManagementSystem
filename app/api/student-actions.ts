@@ -458,6 +458,8 @@ export async function getRegisteredStudentByIdNumber(idNumber: string) {
   }
 }
 
+
+
 // UPDATE
 // UPDATE Consent Agreement
 export async function updateStudentConsent(formData: FormData) {
