@@ -8,7 +8,7 @@ import { ShowcaseSectionDesc } from "@/components/Layouts/showcase-section";
 import LangaugeMultiSelect, { languageOptions } from "@components/FormElements/MultiSelect/LangaugeMultiSelect";
 import RelationsMultiSelect from "@/components/FormElements/MultiSelect/RelationsMultiSelect";
 import { registerStudent } from "@api/student-actions";
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { getRegisteredStudentByIdNumber } from '@api/student-actions';
 
 interface RegisterStudentFormState {
@@ -273,6 +273,11 @@ export function RegisterStudentForm() {
   const [studentFound, setStudentFound] = useState<boolean | null>(null);
   const [searchAttempted, setSearchAttempted] = useState(false);
 
+  // Submission status: null = idle, 'success' = registered ok, 'error' = failed
+  const [submitStatus, setSubmitStatus] = useState<'success' | 'error' | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const notificationRef = useRef<HTMLDivElement>(null);
+
   // Refs to track which field triggered the last update so we don't create
   // infinite update loops between idNumber ↔ dateOfBirth.
   const lastChangedField = useRef<'idNumber' | 'dateOfBirth' | null>(null);
@@ -455,6 +460,82 @@ export function RegisterStudentForm() {
     setRegisteredStudent(prev => ({ ...prev, [field]: value }));
   };
 
+  // ── Form submission handler ──────────────────────────────────────────────────
+  const handleSubmit = useCallback(async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setSubmitStatus(null);
+
+    try {
+      const formData = new FormData(e.currentTarget);
+      await registerStudent(formData);
+      setSubmitStatus('success');
+      // Scroll to the top so the user sees the notification
+      notificationRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // Auto-dismiss after 6 seconds
+      setTimeout(() => setSubmitStatus(null), 6000);
+    } catch (err) {
+      console.error('Registration error:', err);
+      setSubmitStatus('error');
+      notificationRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setTimeout(() => setSubmitStatus(null), 6000);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, []);
+
+  // ── Success / Error notification banner ──────────────────────────────────────
+  const SubmitNotification = () => {
+    if (!submitStatus) return null;
+
+    const isSuccess = submitStatus === 'success';
+
+    return (
+      <div
+        className={`
+          flex items-start gap-4 rounded-xl border p-5 mb-6 shadow-sm
+          transition-all duration-300
+          ${isSuccess
+            ? 'bg-green-50 border-green-300 text-green-800'
+            : 'bg-red-50 border-red-300 text-red-800'}
+        `}
+      >
+        {/* Icon */}
+        <div className={`
+          flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-full text-white text-lg font-bold
+          ${isSuccess ? 'bg-green-500' : 'bg-red-500'}
+        `}>
+          {isSuccess ? '✓' : '✕'}
+        </div>
+
+        {/* Text */}
+        <div className="flex-1">
+          <p className="font-semibold text-base">
+            {isSuccess ? 'Student Successfully Registered!' : 'Registration Failed'}
+          </p>
+          <p className="text-sm mt-0.5 opacity-80">
+            {isSuccess
+              ? `${registeredStudent.firstName || 'The student'} ${registeredStudent.surname || ''} has been added to the system.`
+              : 'Something went wrong. Please check the form and try again.'}
+          </p>
+        </div>
+
+        {/* Dismiss button */}
+        <button
+          type="button"
+          onClick={() => setSubmitStatus(null)}
+          className={`
+            flex-shrink-0 text-xl leading-none font-bold opacity-50 hover:opacity-100 transition-opacity
+            ${isSuccess ? 'text-green-800' : 'text-red-800'}
+          `}
+          aria-label="Dismiss notification"
+        >
+          ×
+        </button>
+      </div>
+    );
+  };
+
   // Status display component
   const StatusIndicator = () => {
     if (isLoading) {
@@ -500,7 +581,12 @@ export function RegisterStudentForm() {
       title="Register Student Form"
       className="!p-6.5"
     >
-      <form action={registerStudent}>
+      {/* Anchor for scroll-to-top on submit — notification renders here */}
+      <div ref={notificationRef}>
+        <SubmitNotification />
+      </div>
+
+      <form onSubmit={handleSubmit}>
         {/* PARTICULARS OF CHILD */}
         <ShowcaseSection
           title="PARTICULARS OF CHILD"
@@ -1259,9 +1345,17 @@ export function RegisterStudentForm() {
 
         <button
           type="submit"
-          className="mt-6 flex w-full justify-center rounded-lg bg-primary p-[13px] font-medium text-white hover:bg-opacity-90"
+          disabled={isSubmitting}
+          className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-primary p-[13px] font-medium text-white hover:bg-opacity-90 disabled:opacity-70 disabled:cursor-not-allowed transition-opacity"
         >
-          Register Student
+          {isSubmitting ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              Registering...
+            </>
+          ) : (
+            'Register Student'
+          )}
         </button>
       </form>
     </ShowcaseSection>
