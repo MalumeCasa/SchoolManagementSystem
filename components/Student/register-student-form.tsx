@@ -140,6 +140,19 @@ function dobToIdPrefix(dob: string): string | null {
   return `${yy}${month}${day}`;
 }
 
+/**
+ * Given the 7th digit (index 6) of a South African ID number,
+ * returns "MALE" or "FEMALE", or null if the digit is not yet available.
+ *
+ * SA ID gender digit: 0–4 = Female, 5–9 = Male
+ */
+function idDigitToSex(idNumber: string): 'MALE' | 'FEMALE' | null {
+  if (idNumber.length < 7) return null;
+  const genderDigit = parseInt(idNumber[6], 10);
+  if (isNaN(genderDigit)) return null;
+  return genderDigit >= 5 ? 'MALE' : 'FEMALE';
+}
+
 // ──────────────────────────────────────────────────────────────────────────────
 
 export function RegisterStudentForm() {
@@ -271,11 +284,16 @@ export function RegisterStudentForm() {
     // Derive DOB from first 6 digits of the ID number
     const derivedDOB = idNumber.length >= 6 ? idDigitsToDOB(idNumber.slice(0, 6)) : null;
 
+    // Derive sex from the 7th digit (index 6): 0–4 = Female, 5–9 = Male
+    const derivedSex = idDigitToSex(idNumber);
+
     setRegisteredStudent(prev => ({
       ...prev,
       idNumber,
       // Only overwrite DOB if we successfully parsed a valid date
       ...(derivedDOB ? { dateOfBirth: derivedDOB } : {}),
+      // Only overwrite sex if digit 7 is present and valid
+      ...(derivedSex ? { sex: derivedSex } : {}),
     }));
   };
 
