@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation"
 import { getSession } from "@/lib/auth"
-import { StudentRegistrationForm } from "@/components/student-registration-form"
+import { StudentRegistrationForm } from "@/components/Student/student-registration-form"
 import Link from "next/link"
 import { School, ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"

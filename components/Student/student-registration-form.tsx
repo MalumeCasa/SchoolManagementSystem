@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { DocumentScanner } from "./document-scanner"
+import { DocumentScanner } from "../document-scanner"
 import { Loader2, User, Users, GraduationCap, FileCheck } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 

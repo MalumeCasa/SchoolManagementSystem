@@ -5,17 +5,35 @@ export interface ClassActivity {
     date: string;
     className?: string;
   }
+
+  type StudentStatus = 'pending' | 'active' | 'inactive' | 'suspended'
   
   export interface Student {
-    id: number;
-    name: string;
-    surname: string;
-    phone?: string;
-    address?: string;
-    attendance?: string;
-    class?: string;
-    email?: string;
-  }
+    id: number
+    idNumber: string
+    name: string
+    surname: string
+    preferredName?: string
+    email?: string
+    phone?: string
+    address?: string
+    sex?: string
+    dateOfBirth?: string
+    religion?: string
+    careRequired?: string
+    dateOfEnrolment?: string
+    homeLanguage?: string[]
+    status: StudentStatus
+    createdAt?: string
+    updatedAt?: string
+    motherFirstNames?: string
+    motherSurname?: string
+    motherCell?: string
+    motherEmail?: string
+    fatherFirstNames?: string
+    fatherSurname?: string
+    fatherCell?: string
+}
   
   export interface Teacher {
     id: number;

@@ -22,6 +22,7 @@ import {
   Briefcase,
   NotebookPen,
   NotebookIcon,
+  LoaderCircle,
 } from "lucide-react";
 
 export type UserRole = "admin" | "teacher" | "student";
@@ -64,6 +65,12 @@ export const navItems: NavItem[] = [
         href: "/students", 
         icon: School, 
         roles: ["admin", "teacher", "student"] 
+      },
+      { 
+        title: "Pending", 
+        href: "/students/pending", 
+        icon: LoaderCircle, 
+        roles: ["admin", "teacher"] 
       },
       { 
         title: "Fees", 

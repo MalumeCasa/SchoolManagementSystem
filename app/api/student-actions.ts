@@ -1,6 +1,6 @@
 'use server';
 
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { db } from './db';
 import { students, registeredStudents } from '@lib/db/schema';
 import { revalidatePath } from 'next/cache';
@@ -15,60 +15,60 @@ function parseDbError(error: unknown): { message: string; field?: string; friend
   const raw = error instanceof Error ? error.message : String(error);
 
   const fieldLabels: Record<string, string> = {
-    id_number:                        'ID / Passport Number',
-    email:                            'Primary Email',
-    phone:                            'Primary Phone Number',
-    name:                             'First Name',
-    surname:                          'Surname',
-    date_of_birth:                    'Date of Birth',
-    date_of_enrolment:                'Date of Enrolment',
-    sex:                              'Sex',
-    religion:                         'Religion',
-    care_required:                    'Care Required',
-    marital_status:                   'Marital Status',
-    mother_email:                     "Mother's Email",
-    mother_cell:                      "Mother's Cell Phone",
-    mother_work_phone:                "Mother's Work Phone",
-    mother_home_phone:                "Mother's Home Phone",
-    mother_id_number:                 "Mother's ID Number",
-    mother_surname:                   "Mother's Surname",
-    mother_first_names:               "Mother's First Names",
-    mother_occupation:                "Mother's Occupation",
-    mother_employer:                  "Mother's Employer",
-    mother_home_address:              "Mother's Home Address",
-    mother_work_address:              "Mother's Work Address",
-    father_email:                     "Father's Email",
-    father_cell:                      "Father's Cell Phone",
-    father_work_phone:                "Father's Work Phone",
-    father_home_phone:                "Father's Home Phone",
-    father_id_number:                 "Father's ID Number",
-    father_surname:                   "Father's Surname",
-    father_first_names:               "Father's First Names",
-    father_occupation:                "Father's Occupation",
-    father_employer:                  "Father's Employer",
-    father_home_address:              "Father's Home Address",
-    father_work_address:              "Father's Work Address",
-    guardian_email:                   "Guardian's Email",
-    guardian_cell:                    "Guardian's Cell Phone",
-    guardian_work_phone:              "Guardian's Work Phone",
-    guardian_home_phone:              "Guardian's Home Phone",
-    guardian_id_number:               "Guardian's ID Number",
-    guardian_surname:                 "Guardian's Surname",
-    guardian_first_names:             "Guardian's First Names",
-    guardian_occupation:              "Guardian's Occupation",
-    guardian_employer:                "Guardian's Employer",
-    guardian_home_address:            "Guardian's Home Address",
-    guardian_work_address:            "Guardian's Work Address",
-    emergency_contact_friend_name:    'Emergency Contact (Friend) Name',
-    emergency_contact_friend_cell:    'Emergency Contact (Friend) Cell',
-    emergency_contact_kin_name:       'Emergency Contact (Kin) Name',
-    emergency_contact_kin_cell:       'Emergency Contact (Kin) Cell',
-    transport_contact_1_name:         'Transport Contact 1 Name',
-    transport_contact_1_phone:        'Transport Contact 1 Phone',
-    transport_contact_2_name:         'Transport Contact 2 Name',
-    transport_contact_2_phone:        'Transport Contact 2 Phone',
-    transport_contact_3_name:         'Transport Contact 3 Name',
-    transport_contact_3_phone:        'Transport Contact 3 Phone',
+    id_number: 'ID / Passport Number',
+    email: 'Primary Email',
+    phone: 'Primary Phone Number',
+    name: 'First Name',
+    surname: 'Surname',
+    date_of_birth: 'Date of Birth',
+    date_of_enrolment: 'Date of Enrolment',
+    sex: 'Sex',
+    religion: 'Religion',
+    care_required: 'Care Required',
+    marital_status: 'Marital Status',
+    mother_email: "Mother's Email",
+    mother_cell: "Mother's Cell Phone",
+    mother_work_phone: "Mother's Work Phone",
+    mother_home_phone: "Mother's Home Phone",
+    mother_id_number: "Mother's ID Number",
+    mother_surname: "Mother's Surname",
+    mother_first_names: "Mother's First Names",
+    mother_occupation: "Mother's Occupation",
+    mother_employer: "Mother's Employer",
+    mother_home_address: "Mother's Home Address",
+    mother_work_address: "Mother's Work Address",
+    father_email: "Father's Email",
+    father_cell: "Father's Cell Phone",
+    father_work_phone: "Father's Work Phone",
+    father_home_phone: "Father's Home Phone",
+    father_id_number: "Father's ID Number",
+    father_surname: "Father's Surname",
+    father_first_names: "Father's First Names",
+    father_occupation: "Father's Occupation",
+    father_employer: "Father's Employer",
+    father_home_address: "Father's Home Address",
+    father_work_address: "Father's Work Address",
+    guardian_email: "Guardian's Email",
+    guardian_cell: "Guardian's Cell Phone",
+    guardian_work_phone: "Guardian's Work Phone",
+    guardian_home_phone: "Guardian's Home Phone",
+    guardian_id_number: "Guardian's ID Number",
+    guardian_surname: "Guardian's Surname",
+    guardian_first_names: "Guardian's First Names",
+    guardian_occupation: "Guardian's Occupation",
+    guardian_employer: "Guardian's Employer",
+    guardian_home_address: "Guardian's Home Address",
+    guardian_work_address: "Guardian's Work Address",
+    emergency_contact_friend_name: 'Emergency Contact (Friend) Name',
+    emergency_contact_friend_cell: 'Emergency Contact (Friend) Cell',
+    emergency_contact_kin_name: 'Emergency Contact (Kin) Name',
+    emergency_contact_kin_cell: 'Emergency Contact (Kin) Cell',
+    transport_contact_1_name: 'Transport Contact 1 Name',
+    transport_contact_1_phone: 'Transport Contact 1 Phone',
+    transport_contact_2_name: 'Transport Contact 2 Name',
+    transport_contact_2_phone: 'Transport Contact 2 Phone',
+    transport_contact_3_name: 'Transport Contact 3 Name',
+    transport_contact_3_phone: 'Transport Contact 3 Phone',
   };
 
   const toFriendly = (col: string) => fieldLabels[col] ?? col.replace(/_/g, ' ');
@@ -288,7 +288,11 @@ export async function registerStudent(formData: FormData) {
     const name = formData.get('name') as string;
     const surname = formData.get('surname') as string;
     const preferredName = formData.get('preferredName') as string;
+
+    // Handle empty date strings by converting to null
     const dateOfBirth = formData.get('dateOfBirth') as string;
+    const dateOfEnrolment = formData.get('dateOfEnrolment') as string;
+
     const idNumber = formData.get('idNumber') as string;
     const sex = formData.get('sex') as string;
     const address = formData.get('address') as string;
@@ -298,8 +302,10 @@ export async function registerStudent(formData: FormData) {
     const email = formData.get('email') as string;
     const phone = formData.get('phone') as string;
     const religion = formData.get('religion') as string;
-    const dateOfEnrolment = formData.get('dateOfEnrolment') as string;
     const ageAtEnrolment = parseInt(formData.get('ageAtEnrolment') as string) || 0;
+
+    // Get status from form data - this is key for updates
+    const status = formData.get('status') as string;
 
     const numberOfChildrenInFamily = parseInt(formData.get('numberOfChildrenInFamily') as string) || 0;
     const positionInFamily = parseInt(formData.get('positionInFamily') as string) || 0;
@@ -397,8 +403,6 @@ export async function registerStudent(formData: FormData) {
     const existingStudent = await getRegisteredStudentByIdNumber(idNumber);
 
     // ── Pre-submission duplicate checks for email & phone ─────────────────────
-    // Only run these for NEW students (not updates — updates are allowed to keep
-    // their own email/phone). existingStudent being null means this is an insert.
     if (!existingStudent) {
       if (email && email.trim() !== '') {
         const emailCheck = await checkEmailExists(email);
@@ -423,114 +427,142 @@ export async function registerStudent(formData: FormData) {
       }
     }
 
-    const studentData = {
+    // Helper function to handle empty strings for date fields
+    const handleDateField = (dateStr: string | null): string | null => {
+      if (!dateStr || dateStr.trim() === '') return null;
+      return dateStr;
+    };
+
+    // Base student data object with null checks for dates
+    const studentData: any = {
       name,
       surname,
-      preferredName,
-      dateOfBirth,
+      preferredName: preferredName || null,
+      dateOfBirth: handleDateField(dateOfBirth),
       idNumber,
-      sex,
-      address,
-      email,
-      phone,
-      homeLanguage,
-      religion,
-      dateOfEnrolment,
-      ageAtEnrolment,
-      previousSchool,
-      intendedPrimarySchool,
-      careRequired,
-      numberOfChildrenInFamily,
-      positionInFamily,
-      authorizedToBring,
-      authorizedToCollect,
-      medicalConsent1,
-      medicalConsent1Father,
-      medicalConsent1Mother,
-      medicalConsent1Guardian,
-      medicalConsent2,
-      medicalConsent2Father,
-      medicalConsent2Mother,
-      medicalConsent2Guardian,
-      maritalStatus,
-      livesWith,
-      emergencyContactFriendName,
-      emergencyContactFriendRelationship,
-      emergencyContactFriendAddress,
-      emergencyContactFriendWorkPhone,
-      emergencyContactFriendHomePhone,
-      emergencyContactFriendCell,
-      emergencyContactKinName,
-      emergencyContactKinRelationship,
-      emergencyContactKinAddress,
-      emergencyContactKinWorkPhone,
-      emergencyContactKinHomePhone,
-      emergencyContactKinCell,
-      transportContact1Name,
-      transportContact1Phone,
-      transportContact2Name,
-      transportContact2Phone,
-      transportContact3Name,
-      transportContact3Phone,
-      specialInstructions,
-      motherTitle,
-      motherSurname,
-      motherFirstNames,
-      motherIdNumber,
-      motherOccupation,
-      motherEmployer,
-      motherWorkPhone,
-      motherHomePhone,
-      motherCell,
-      motherEmail,
-      motherHomeAddress,
-      motherWorkAddress,
-      fatherTitle,
-      fatherSurname,
-      fatherFirstNames,
-      fatherIdNumber,
-      fatherOccupation,
-      fatherEmployer,
-      fatherWorkPhone,
-      fatherHomePhone,
-      fatherCell,
-      fatherEmail,
-      fatherHomeAddress,
-      fatherWorkAddress,
-      guardianTitle,
-      guardianSurname,
-      guardianFirstNames,
-      guardianIdNumber,
-      guardianOccupation,
-      guardianEmployer,
-      guardianWorkPhone,
-      guardianHomePhone,
-      guardianCell,
-      guardianEmail,
-      guardianHomeAddress,
-      guardianWorkAddress,
-      motherFinancialSignature: consent1MotherSignature || consent2MotherSignature,
-      motherFinancialDate: consent1MotherDate || consent2MotherDate,
-      fatherFinancialSignature: consent1FatherSignature || consent2FatherSignature,
-      fatherFinancialDate: consent1FatherDate || consent2FatherDate,
-      medicalConditions,
-      status: 'pending',
-      popiConsent: false,
-      financialAgreedTerms: false,
-      financialAgreedLiability: false,
-      financialAgreedCancellation: false,
+      sex: sex || null,
+      address: address || null,
+      email: email || null,
+      phone: phone || null,
+      homeLanguage: homeLanguage.length > 0 ? homeLanguage : null,
+      religion: religion || null,
+      dateOfEnrolment: handleDateField(dateOfEnrolment),
+      ageAtEnrolment: ageAtEnrolment || null,
+      previousSchool: previousSchool || null,
+      intendedPrimarySchool: intendedPrimarySchool || null,
+      careRequired: careRequired || null,
+      numberOfChildrenInFamily: numberOfChildrenInFamily || null,
+      positionInFamily: positionInFamily || null,
+      authorizedToBring: authorizedToBring.length > 0 ? authorizedToBring : null,
+      authorizedToCollect: authorizedToCollect.length > 0 ? authorizedToCollect : null,
+      medicalConsent1: medicalConsent1 || null,
+      medicalConsent1Father: medicalConsent1Father || false,
+      medicalConsent1Mother: medicalConsent1Mother || false,
+      medicalConsent1Guardian: medicalConsent1Guardian || false,
+      medicalConsent2: medicalConsent2 || null,
+      medicalConsent2Father: medicalConsent2Father || false,
+      medicalConsent2Mother: medicalConsent2Mother || false,
+      medicalConsent2Guardian: medicalConsent2Guardian || false,
+      maritalStatus: maritalStatus || null,
+      livesWith: livesWith.length > 0 ? livesWith : null,
+      emergencyContactFriendName: emergencyContactFriendName || null,
+      emergencyContactFriendRelationship: emergencyContactFriendRelationship || null,
+      emergencyContactFriendAddress: emergencyContactFriendAddress || null,
+      emergencyContactFriendWorkPhone: emergencyContactFriendWorkPhone || null,
+      emergencyContactFriendHomePhone: emergencyContactFriendHomePhone || null,
+      emergencyContactFriendCell: emergencyContactFriendCell || null,
+      emergencyContactKinName: emergencyContactKinName || null,
+      emergencyContactKinRelationship: emergencyContactKinRelationship || null,
+      emergencyContactKinAddress: emergencyContactKinAddress || null,
+      emergencyContactKinWorkPhone: emergencyContactKinWorkPhone || null,
+      emergencyContactKinHomePhone: emergencyContactKinHomePhone || null,
+      emergencyContactKinCell: emergencyContactKinCell || null,
+      transportContact1Name: transportContact1Name || null,
+      transportContact1Phone: transportContact1Phone || null,
+      transportContact2Name: transportContact2Name || null,
+      transportContact2Phone: transportContact2Phone || null,
+      transportContact3Name: transportContact3Name || null,
+      transportContact3Phone: transportContact3Phone || null,
+      specialInstructions: specialInstructions || null,
+      motherTitle: motherTitle || null,
+      motherSurname: motherSurname || null,
+      motherFirstNames: motherFirstNames || null,
+      motherIdNumber: motherIdNumber || null,
+      motherOccupation: motherOccupation || null,
+      motherEmployer: motherEmployer || null,
+      motherWorkPhone: motherWorkPhone || null,
+      motherHomePhone: motherHomePhone || null,
+      motherCell: motherCell || null,
+      motherEmail: motherEmail || null,
+      motherHomeAddress: motherHomeAddress || null,
+      motherWorkAddress: motherWorkAddress || null,
+      fatherTitle: fatherTitle || null,
+      fatherSurname: fatherSurname || null,
+      fatherFirstNames: fatherFirstNames || null,
+      fatherIdNumber: fatherIdNumber || null,
+      fatherOccupation: fatherOccupation || null,
+      fatherEmployer: fatherEmployer || null,
+      fatherWorkPhone: fatherWorkPhone || null,
+      fatherHomePhone: fatherHomePhone || null,
+      fatherCell: fatherCell || null,
+      fatherEmail: fatherEmail || null,
+      fatherHomeAddress: fatherHomeAddress || null,
+      fatherWorkAddress: fatherWorkAddress || null,
+      guardianTitle: guardianTitle || null,
+      guardianSurname: guardianSurname || null,
+      guardianFirstNames: guardianFirstNames || null,
+      guardianIdNumber: guardianIdNumber || null,
+      guardianOccupation: guardianOccupation || null,
+      guardianEmployer: guardianEmployer || null,
+      guardianWorkPhone: guardianWorkPhone || null,
+      guardianHomePhone: guardianHomePhone || null,
+      guardianCell: guardianCell || null,
+      guardianEmail: guardianEmail || null,
+      guardianHomeAddress: guardianHomeAddress || null,
+      guardianWorkAddress: guardianWorkAddress || null,
+      motherFinancialSignature: consent1MotherSignature || consent2MotherSignature || null,
+      motherFinancialDate: handleDateField(consent1MotherDate || consent2MotherDate),
+      fatherFinancialSignature: consent1FatherSignature || consent2FatherSignature || null,
+      fatherFinancialDate: handleDateField(consent1FatherDate || consent2FatherDate),
+      medicalConditions: medicalConditions.length > 0 ? medicalConditions : null,
       updatedAt: new Date().toISOString()
     };
 
+    // Handle status based on whether this is a new student or an update
     if (existingStudent) {
-      const updateData: any = { updated_at: new Date() };
+      // For updates: use the status from form data if provided, otherwise keep existing
+      if (status) {
+        studentData.status = status;
+      }
+    } else {
+      // For new students: default to 'pending'
+      studentData.status = 'pending';
+      // Set default consent values for new students
+      studentData.popiConsent = false;
+      studentData.financialAgreedTerms = false;
+      studentData.financialAgreedLiability = false;
+      studentData.financialAgreedCancellation = false;
+    }
 
+    if (existingStudent) {
+      const updateData: any = {};
+
+      // Only include fields that have values (not null or undefined)
       Object.keys(studentData).forEach((key) => {
         const value = (studentData as any)[key];
-        if (value !== null && value !== undefined && value !== '') {
-          updateData[key] = value;
+        if (value !== null && value !== undefined) {
+          // Convert empty strings to null for date fields
+          const dateFields = ['dateOfBirth', 'dateOfEnrolment', 'motherFinancialDate', 'fatherFinancialDate'];
+          if (dateFields.includes(key) && value === '') {
+            updateData[key] = null;
+          } else if (value !== '') {
+            updateData[key] = value;
+          }
         }
       });
+
+      // Always include updated_at
+      updateData.updated_at = new Date();
 
       const updatedStudent = await db.update(registeredStudents)
         .set(updateData)
