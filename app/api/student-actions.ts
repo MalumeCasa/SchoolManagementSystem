@@ -4,6 +4,7 @@ import { eq, sql } from 'drizzle-orm';
 import { db } from './db';
 import { students, registeredStudents } from '@lib/db/schema';
 import { revalidatePath } from 'next/cache';
+import type { DisplayStudent } from '@/types/student';
 
 export type NewStudent = {
   name: string;
@@ -931,6 +932,45 @@ export async function updateRegisteredStudentMedicalForm(formData: FormData) {
   }
 }
 
+// ─── NEW: Update Student from Display Page ─────────────────────────────────────
+
+export async function updateStudentFromDisplay(id: string, data: Partial<DisplayStudent>) {
+  try {
+    const studentId = parseInt(id);
+    
+    // Convert the data to match the database schema
+    const updateData: any = {};
+    
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.surname !== undefined) updateData.surname = data.surname;
+    if (data.email !== undefined) updateData.email = data.email;
+    if (data.phone !== undefined) updateData.phone = data.phone;
+    if (data.address !== undefined) updateData.address = data.address;
+    if (data.status !== undefined) updateData.status = data.status;
+    if (data.class !== undefined) updateData.class = data.class;
+    if (data.className !== undefined) updateData.className = data.className;
+    if (data.classSection !== undefined) updateData.classSection = data.classSection;
+    if (data.studentId !== undefined) updateData.studentId = data.studentId;
+    
+    // Add updated timestamp
+    updateData.updatedAt = new Date();
+    
+    const result = await db
+      .update(students)
+      .set(updateData)
+      .where(eq(students.id, studentId))
+      .returning();
+
+    revalidatePath("/dashboard/users/students");
+    
+    return { success: true, data: result[0] };
+  } catch (error) {
+    console.error("Error updating student:", error);
+    const parsed = parseDbError(error);
+    return { success: false, error: parsed.message };
+  }
+}
+
 export async function updateStudent(id: number, formData: FormData) {
   const updatedName = formData.get('name') as string;
   try {
@@ -1009,10 +1049,16 @@ export async function exportStudents(studentsData: any[], format: 'json' | 'csv'
       const dataStr = JSON.stringify(studentsData, null, 2);
       return { data: dataStr, filename: `students_${Date.now()}.json`, mimeType: 'application/json' };
     } else if (format === 'csv' || format === 'xlsx') {
-      const headers = ['ID', 'Name', 'Surname', 'Email', 'Phone', 'Address', 'Class'];
+      const headers = ['ID', 'Name', 'Surname', 'Email', 'Phone', 'Address', 'Class', 'Status'];
       const csvData = studentsData.map(student => [
-        student.id, student.name, student.surname, student.email,
-        student.phone || 'N/A', student.address || 'N/A', student.class || 'N/A'
+        student.id, 
+        student.name, 
+        student.surname, 
+        student.email || 'N/A',
+        student.phone || 'N/A', 
+        student.address || 'N/A', 
+        student.class || 'N/A',
+        student.status || 'N/A'
       ]);
 
       const csvContent = [headers, ...csvData]
