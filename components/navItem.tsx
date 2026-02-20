@@ -41,17 +41,17 @@ export const navItems: NavItem[] = [
     icon: LayoutDashboard,
     roles: ["admin", "teacher", "student"],
     children: [
-      { 
-        title: "Overview", 
-        href: "/dashboard", 
-        icon: Home, 
-        roles: ["admin", "teacher", "student"] 
+      {
+        title: "Overview",
+        href: "/dashboard",
+        icon: Home,
+        roles: ["admin", "teacher", "student"]
       },
-      { 
-        title: "Analytics", 
-        href: "/dashboard/analytics", 
-        icon: BarChart3, 
-        roles: ["admin", "teacher"] 
+      {
+        title: "Analytics",
+        href: "/dashboard/analytics",
+        icon: BarChart3,
+        roles: ["admin", "teacher"]
       },
     ],
   },
@@ -60,131 +60,154 @@ export const navItems: NavItem[] = [
     icon: GraduationCap,
     roles: ["admin", "teacher"],
     children: [
-      { 
-        title: "Students", 
-        href: "/students", 
-        icon: School, 
-        roles: ["admin", "teacher", "student"] 
+      {
+        title: "Students",
+        href: "/students",
+        icon: School,
+        roles: ["admin", "teacher", "student"]
       },
-      { 
-        title: "Pending", 
-        href: "/students/pending", 
-        icon: LoaderCircle, 
-        roles: ["admin", "teacher"] 
+      {
+        title: "Pending",
+        href: "/students/pending",
+        icon: LoaderCircle,
+        roles: ["admin", "teacher"]
       },
-      { 
-        title: "Fees", 
-        href: "/students/fees", 
-        icon: DollarSign, 
-        roles: ["admin", "teacher"] 
+      {
+        title: "Fees",
+        href: "/students/fees",
+        icon: DollarSign,
+        roles: ["admin", "teacher"]
       },
-      { 
-        title: "Attendance", 
-        href: "/attendance", 
-        icon: ClipboardList, 
-        roles: ["admin", "teacher", "student"] 
+      {
+        title: "Attendance",
+        href: "/attendance",
+        icon: ClipboardList,
+        roles: ["admin", "teacher", "student"]
       },
     ],
   },
   {
     title: "Academics",
     icon: BookOpen,
-    roles: ["admin", "teacher", "student"],
+    roles: ["admin", "teacher"],
     children: [
-      { 
-        title: "Classes", 
-        href: "/academics/classes", 
-        icon: School, 
-        roles: ["admin", "teacher", "student"] 
+      {
+        title: "Classes",
+        href: "/academics/classes",
+        icon: School,
+        roles: ["admin", "teacher"]
       },
-      { 
-        title: "Subjects", 
-        href: "/academics/subjects", 
-        icon: BookOpen, 
-        roles: ["admin", "teacher", "student"] 
+      {
+        title: "Subjects",
+        href: "/academics/subjects",
+        icon: BookOpen,
+        roles: ["admin", "teacher"]
       },
-      { 
-        title: "Timetable", 
-        href: "/academics/calendar", 
-        icon: Calendar, 
-        roles: ["admin", "teacher", "student"] 
+      {
+        title: "Timetable",
+        href: "/academics/calendar",
+        icon: Calendar,
+        roles: ["admin", "teacher"]
       },
-      { 
-        title: "Exams", 
-        href: "/academics/exams", 
-        icon: NotebookPen, 
-        roles: ["admin", "teacher", "student"] 
+      {
+        title: "Exams",
+        href: "/academics/exams",
+        icon: NotebookPen,
+        roles: ["admin", "teacher"]
       },
-      { 
-        title: "Assignments", 
-        href: "/academics/assignments", 
-        icon: NotebookIcon, 
-        roles: ["admin", "teacher", "student"] 
+      {
+        title: "Assignments",
+        href: "/academics/assignments",
+        icon: NotebookIcon,
+        roles: ["admin", "teacher"]
       },
-      { 
-        title: "Curriculum", 
-        href: "/academics/curriculum", 
-        icon: ClipboardList, 
-        roles: ["admin", "teacher"] 
+      {
+        title: "Curriculum",
+        href: "/academics/curriculum",
+        icon: ClipboardList,
+        roles: ["admin", "teacher"]
       },
     ],
   },
-  { 
-    title: "Staff", 
-    href: "/dashboard/teachers", 
-    icon: Users, 
+  {
+    title: "Staff",
+    href: "/dashboard/teachers",
+    icon: Users,
     roles: ["admin"],
     children: [
-      { 
-        title: "Staff", 
-        href: "/staff", 
-        icon: Users, 
-        roles: ["admin"] 
+      {
+        title: "Staff",
+        href: "/staff",
+        icon: Users,
+        roles: ["admin"]
       },
-        {
-            title: "Attendance",
-            href: "/staff/attendance",
-            icon: UserCheck,
-            roles: ["admin", "teacher"]
-        },
-        // leave, performance, 
-        {
-            title: "Performance",
-            href: "/staff/performance",
-            icon: ChartNoAxesGantt,
-            roles: ["admin", "teacher"]
-        },
-        {
-            title: "Leave",
-            href: "/staff/leave",
-            icon: Briefcase,
-            roles: ["admin", "teacher"]
-        }
+      {
+        title: "Attendance",
+        href: "/staff/attendance",
+        icon: UserCheck,
+        roles: ["admin", "teacher"]
+      },
+      // leave, performance, 
+      {
+        title: "Performance",
+        href: "/staff/performance",
+        icon: ChartNoAxesGantt,
+        roles: ["admin", "teacher"]
+      },
+      {
+        title: "Leave",
+        href: "/staff/leave",
+        icon: Briefcase,
+        roles: ["admin", "teacher"]
+      }
     ],
   },
-  
-  { 
-    title: "Schedule", 
-    href: "/schedule", 
-    icon: Calendar, 
-    roles: ["admin", "teacher", "student"] 
+  {
+        title: "Subjects",
+        href: "/academics/subjects",
+        icon: BookOpen,
+        roles: ["admin", "teacher", "student"]
+      },
+      {
+        title: "Timetable",
+        href: "/academics/calendar",
+        icon: Calendar,
+        roles: ["admin", "teacher", "student"]
+      },
+      {
+        title: "Exams",
+        href: "/academics/exams",
+        icon: NotebookPen,
+        roles: ["admin", "teacher", "student"]
+      },
+      {
+        title: "Assignments",
+        href: "/academics/assignments",
+        icon: NotebookIcon,
+        roles: ["admin", "teacher", "student"]
+      },
+      {
+        title: "Curriculum",
+        href: "/academics/curriculum",
+        icon: ClipboardList,
+        roles: ["admin", "teacher", "student"]
+      },
+  {
+    title: "Announcements",
+    href: "/dashboard/announcements",
+    icon: Bell,
+    roles: ["admin", "teacher", "student"]
   },
-  { 
-    title: "Announcements", 
-    href: "/dashboard/announcements", 
-    icon: Bell, 
-    roles: ["admin", "teacher", "student"] 
+  {
+    title: "Reports",
+    href: "/dashboard/reports",
+    icon: ClipboardList,
+    roles: ["admin"]
   },
-  { 
-    title: "Reports", 
-    href: "/dashboard/reports", 
-    icon: ClipboardList, 
-    roles: ["admin"] 
-  },
-  { 
-    title: "Settings", 
-    href: "/dashboard/settings", 
-    icon: Settings, 
-    roles: ["admin"] 
+  {
+    title: "Settings",
+    href: "/dashboard/settings",
+    icon: Settings,
+    roles: ["admin"]
   },
 ];
