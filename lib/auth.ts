@@ -4,6 +4,9 @@ import bcrypt from "bcryptjs"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { getUserByEmail, getUserById } from "./db"
+import { db } from "@lib/db/index"
+import { students } from "@lib/db/schema"
+import { eq } from "drizzle-orm"
 import { UserRole } from "./types"
 
 const SALT_ROUNDS = 10
@@ -58,7 +61,25 @@ export async function getCurrentUser() {
   if (!session) return null
 
   const user = await getUserById(session.userId)
-  if (!user) return null // Don't delete the cookie here, just return null
+  if (!user) return null
+
+  // For student accounts, look up their className from the students table
+  // using the student_id stored on the users row.
+  let className: string | null = null
+  let classSection: string | null = null
+
+  if (user.role === 'student' && user.student_id) {
+    const studentRecord = await db
+      .select({ className: students.className, classSection: students.classSection })
+      .from(students)
+      .where(eq(students.studentId, user.student_id))
+      .limit(1)
+
+    if (studentRecord.length > 0) {
+      className = studentRecord[0].className
+      classSection = studentRecord[0].classSection
+    }
+  }
 
   return {
     id: user.id,
@@ -69,6 +90,9 @@ export async function getCurrentUser() {
     teacherId: user.teacher_id,
     phone: user.phone,
     status: user.status,
+    IdNumber: user.id_number,
+    className,        // e.g. "Grade 1" — used to filter subjects on timetable page
+    classSection,     // e.g. "primary" — optionally used for further filtering
   }
 }
 

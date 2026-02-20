@@ -13,11 +13,18 @@ export const metadata: Metadata = {
 
 export default async function StudentCalendarPage({ user }: { user: any }) {
     const subjectsResult = await getAllSubjects();
-    const subjects = subjectsResult?.success ? subjectsResult.data.map(subject => ({
+    const allSubjects = subjectsResult?.success ? subjectsResult.data.map(subject => ({
         ...subject,
         updatedAt: subject.updatedAt || undefined,
         createdAt: subject.createdAt || undefined
     })) : [];
+
+    const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+
+    // Students only see subjects that match their assigned className
+    const subjects = isAdmin
+        ? allSubjects
+        : allSubjects.filter(subject => subject.className === user?.className);
 
     return (
         <>
