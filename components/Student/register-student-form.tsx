@@ -135,6 +135,63 @@ function idDigitToSex(idNumber: string): 'MALE' | 'FEMALE' | null {
   return genderDigit >= 5 ? 'MALE' : 'FEMALE';
 }
 
+// ─── Full SA ID number validation ────────────────────────────────────────────
+// SA ID format: YYMMDD GGGG C A Z
+//   YYMMDD  – date of birth
+//   GGGG    – gender (0000–4999 female, 5000–9999 male)
+//   C       – citizenship (0 = SA citizen, 1 = permanent resident)
+//   A       – usually 8 (race digit, legacy — we accept any digit)
+//   Z       – Luhn checksum digit
+
+interface SAIdValidationResult {
+  valid: boolean;
+  errors: string[];
+}
+
+function validateSAIdNumber(id: string): SAIdValidationResult {
+  const errors: string[] = [];
+
+  // 1. Must be exactly 13 digits
+  if (!/^\d{13}$/.test(id)) {
+    errors.push('ID number must be exactly 13 numeric digits.');
+    return { valid: false, errors };
+  }
+
+  // 2. Date of birth digits must form a valid calendar date
+  const dob = idDigitsToDOB(id.slice(0, 6));
+  if (!dob) {
+    errors.push('The first 6 digits must form a valid date (YYMMDD).');
+  }
+
+  // 3. Date of birth must not be in the future
+  if (dob && new Date(dob) > new Date()) {
+    errors.push('Date of birth derived from ID number is in the future.');
+  }
+
+  // 4. Citizenship digit must be 0 or 1
+  const citizenshipDigit = parseInt(id[10], 10);
+  if (citizenshipDigit !== 0 && citizenshipDigit !== 1) {
+    errors.push('Digit 11 (citizenship) must be 0 (SA citizen) or 1 (permanent resident).');
+  }
+
+  // 5. Luhn algorithm checksum on all 13 digits
+  let sum = 0;
+  for (let i = 0; i < 12; i++) {
+    let digit = parseInt(id[i], 10);
+    if (i % 2 !== 0) {
+      digit *= 2;
+      if (digit > 9) digit -= 9;
+    }
+    sum += digit;
+  }
+  const checkDigit = (10 - (sum % 10)) % 10;
+  if (checkDigit !== parseInt(id[12], 10)) {
+    errors.push('ID number fails the Luhn checksum — it may contain a typo.');
+  }
+
+  return { valid: errors.length === 0, errors };
+}
+
 // ─── Field section map (for error location hints) ────────────────────────────
 const FIELD_SECTION_MAP: Record<string, string> = {
   id_number:                    'Particulars of Child → ID Number',
@@ -262,8 +319,8 @@ export function RegisterStudentForm() {
     previousSchool: '',
     intendedPrimarySchool: '',
     careRequired: '',
-    dateOfEnrolment: '',
-    ageAtEnrolment: 0,
+    dateOfEnrolment: new Date().toISOString().split('T')[0],
+    ageAtEnrolment: undefined,
     emergencyContactFriendName: '',
     emergencyContactFriendRelationship: '',
     emergencyContactFriendAddress: '',
@@ -326,6 +383,7 @@ export function RegisterStudentForm() {
   // ── Inline field validation state ─────────────────────────────────────────
   const [emailValidation, setEmailValidation] = useState<FieldValidation>({ state: 'idle', message: '' });
   const [phoneValidation, setPhoneValidation] = useState<FieldValidation>({ state: 'idle', message: '' });
+  const [idValidation, setIdValidation] = useState<SAIdValidationResult | null>(null);
 
   // ── Student lookup + submission state ──────────────────────────────────────
   const [isLoading, setIsLoading] = useState(false);
@@ -354,6 +412,13 @@ export function RegisterStudentForm() {
       ...(derivedDOB ? { dateOfBirth: derivedDOB } : {}),
       ...(derivedSex ? { sex: derivedSex } : {}),
     }));
+
+    // Run full SA ID validation once all 13 digits are present
+    if (idNumber.length === 13) {
+      setIdValidation(validateSAIdNumber(idNumber));
+    } else {
+      setIdValidation(null);
+    }
   };
 
   // ── Date of Birth change handler ──────────────────────────────────────────
@@ -456,6 +521,27 @@ export function RegisterStudentForm() {
 
     return () => clearTimeout(timer);
   }, [registeredStudent.phone]);
+
+  // ── Age at enrolment — auto-calculated from DOB + enrolment date ─────────
+  useEffect(() => {
+    const dob = registeredStudent.dateOfBirth;
+    const enrolment = registeredStudent.dateOfEnrolment;
+    if (!dob || !enrolment) return;
+
+    const dobDate = new Date(dob);
+    const enrolDate = new Date(enrolment);
+    if (isNaN(dobDate.getTime()) || isNaN(enrolDate.getTime())) return;
+
+    let years = enrolDate.getFullYear() - dobDate.getFullYear();
+    const monthDiff = enrolDate.getMonth() - dobDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && enrolDate.getDate() < dobDate.getDate())) {
+      years--;
+    }
+
+    if (years >= 0) {
+      setRegisteredStudent(prev => ({ ...prev, ageAtEnrolment: years }));
+    }
+  }, [registeredStudent.dateOfBirth, registeredStudent.dateOfEnrolment]);
 
   // ── Debounced student lookup (fires when idNumber changes) ────────────────
   useEffect(() => {
@@ -767,6 +853,24 @@ export function RegisterStudentForm() {
               onChange={(e) => handleRegisterStudentFormChange('idNumber', e.target.value)}
               required
             />
+            {/* SA ID validation feedback */}
+            {idValidation !== null && (
+              <div className={`flex flex-col gap-1 mt-2 p-2.5 rounded-md border ${idValidation.valid ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-300'}`}>
+                {idValidation.valid ? (
+                  <div className="flex items-center gap-2">
+                    <div className="flex-shrink-0 w-3 h-3 bg-green-500 rounded-full" />
+                    <p className="text-xs font-medium text-green-700">✓ Valid South African ID number</p>
+                  </div>
+                ) : (
+                  idValidation.errors.map((err, i) => (
+                    <div key={i} className="flex items-start gap-2">
+                      <div className="flex-shrink-0 mt-0.5 w-3 h-3 bg-red-500 rounded-full" />
+                      <p className="text-xs font-medium text-red-700">{err}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
             <StatusIndicator />
           </div>
 
@@ -980,10 +1084,11 @@ export function RegisterStudentForm() {
               label="AGE AT ENROLMENT"
               type="number"
               name="ageAtEnrolment"
-              placeholder="Age at enrollment"
+              placeholder="Auto-calculated from ID number"
               className="w-full xl:w-1/2"
               value={registeredStudent.ageAtEnrolment !== undefined ? String(registeredStudent.ageAtEnrolment) : undefined}
               onChange={(e) => handleRegisterStudentFormChange('ageAtEnrolment', parseInt(e.target.value) || '')}
+              readOnly
             />
           </div>
         </ShowcaseSection>
@@ -1232,10 +1337,10 @@ export function RegisterStudentForm() {
           </div>
         </ShowcaseSection>
 
-        {/* Submit button — disabled if a duplicate is detected */}
+        {/* Submit button — disabled if a duplicate is detected or ID is invalid */}
         <button
           type="submit"
-          disabled={isSubmitting || emailValidation.state === 'taken' || phoneValidation.state === 'taken'}
+          disabled={isSubmitting || emailValidation.state === 'taken' || phoneValidation.state === 'taken' || (idValidation !== null && !idValidation.valid)}
           className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-primary p-[13px] font-medium text-white hover:bg-opacity-90 disabled:opacity-70 disabled:cursor-not-allowed transition-opacity"
         >
           {isSubmitting ? (
@@ -1243,6 +1348,8 @@ export function RegisterStudentForm() {
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
               Registering...
             </>
+          ) : idValidation !== null && !idValidation.valid ? (
+            '⚠ Invalid ID Number — Please Fix Before Submitting'
           ) : emailValidation.state === 'taken' ? (
             '⚠ Duplicate Email — Please Fix Before Submitting'
           ) : phoneValidation.state === 'taken' ? (
