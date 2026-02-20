@@ -83,6 +83,7 @@ export async function getCurrentUser() {
 
   return {
     id: user.id,
+    idNumber: user.id_number,
     email: user.email,
     fullName: `${user.full_name}`,
     role: user.role,

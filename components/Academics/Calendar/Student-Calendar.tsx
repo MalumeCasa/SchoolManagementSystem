@@ -31,7 +31,7 @@ export default async function StudentCalendarPage({ user }: { user: any }) {
             <Breadcrumb pageName="School Calendar" />
             <div className="grid grid-cols-1 gap-9 sm:grid-cols-1">
                 <div className="flex flex-col gap-9x">
-                    <ShowcaseSection title="School Calendar" className="space-y-5.5 !p-6.5">
+                    <ShowcaseSection title={`School Calendar for ${user?.fullName + ' (' + user?.idNumber + ')' || 'All Classes'}`} className="space-y-5.5 !p-6.5">
                         <Calendar subjects={subjects} />
                     </ShowcaseSection>
                 </div>

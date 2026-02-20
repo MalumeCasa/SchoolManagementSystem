@@ -55,7 +55,7 @@ export async function StudentDashboard({ user }: StudentDashboardProps) {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" asChild>
-            <Link href="/schedule">
+            <Link href="/academics/calendar">
               <Calendar className="mr-2 h-4 w-4" />
               My Schedule
             </Link>
