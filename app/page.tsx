@@ -1,13 +1,31 @@
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
+import { Navbar } from "@components/Landing/navbar"
+import { HeroSection } from "@components/Landing/hero-section"
+import { StatsBanner } from "@components/Landing/stats-banner"
+import { AboutSection } from "@components/Landing/about-section"
+import { ServicesSection } from "@components/Landing/services-section"
+import { ActivitiesSection } from "@components/Landing/activities-section"
+import { WhyChooseSection } from "@components/Landing/why-choose-section"
+import { GallerySection } from "@components/Landing/gallery-section"
+import { TestimonialsSection } from "@components/Landing/testimonials-section"
+import { EnrolSection } from "@components/Landing/enrol-section"
+import { ContactSection } from "@components/Landing/contact-section"
+import { Footer } from "@components/Landing/footer"
 
-export default function Page() {
+export default function Home() {
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <h1 className="text-3xl font-bold">Welcome to EduManage</h1>
-     <Button asChild className="mt-6">
-        <Link href="/home">Go to Home</Link>
-      </Button>      
-    </div>
+    <main>
+      <Navbar />
+      <HeroSection />
+      <StatsBanner />
+      <AboutSection />
+      <ServicesSection />
+      <ActivitiesSection />
+      <WhyChooseSection />
+      <GallerySection />
+      <TestimonialsSection />
+      <EnrolSection />
+      <ContactSection />
+      <Footer />
+    </main>
   )
 }

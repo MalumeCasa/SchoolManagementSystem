@@ -62,6 +62,12 @@ export default async function LoginPage({
                 Register here
               </Link>
             </p>
+            <p className="text-sm text-muted-foreground">
+              Back To ?{" "}
+              <Link href="/" className="font-medium text-primary hover:underline">
+                Home Page
+              </Link>
+            </p>
             <p className="text-xs text-muted-foreground">
               Secured with industry-standard encryption
             </p>
