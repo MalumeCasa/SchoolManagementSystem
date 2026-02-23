@@ -1400,14 +1400,14 @@ export function DisplayStudentsPage({ students: initialStudents }: { students: S
                           <TableCell className="py-3">
                             <div className="flex items-center justify-center gap-1">
                               <Link
-                                href={`/dashboard/users/students/${student.id}/edit`}
+                                href={`/students/${student.id}/edit`}
                                 className="rounded-lg p-2 text-blue-600 hover:bg-blue-50 transition-colors dark:text-blue-400 dark:hover:bg-blue-900/20"
                                 title="Edit student"
                               >
                                 <Edit3 className="h-4 w-4" />
                               </Link>
                               <Link
-                                href={`/dashboard/users/students/${student.id}`}
+                                href={`/students/registered/${student.id}`}
                                 className="rounded-lg p-2 text-emerald-600 hover:bg-emerald-50 transition-colors dark:text-emerald-400 dark:hover:bg-emerald-900/20"
                                 title="View student details"
                               >

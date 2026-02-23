@@ -162,18 +162,6 @@ function parseDbError(error: unknown): { message: string; field?: string; friend
   };
 }
 
-// ─── Duplicate Field Checkers ──────────────────────────────────────────────────
-
-/**
- * Checks whether the given email address is already registered to another student.
- * Pass `excludeIdNumber` when editing an existing student so their own email
- * doesn't trigger a false positive.
- *
- * Returns:
- *   { exists: false }                          → email is free to use
- *   { exists: true, studentName: string }      → email is taken (includes student name)
- *   { exists: false, error: string }           → DB error (treat as non-blocking warning)
- */
 export async function checkEmailExists(
   email: string,
   excludeIdNumber?: string
@@ -202,16 +190,6 @@ export async function checkEmailExists(
   }
 }
 
-/**
- * Checks whether the given phone number is already registered to another student.
- * Pass `excludeIdNumber` when editing an existing student so their own number
- * doesn't trigger a false positive.
- *
- * Returns:
- *   { exists: false }                          → phone is free to use
- *   { exists: true, studentName: string }      → phone is taken (includes student name)
- *   { exists: false, error: string }           → DB error (treat as non-blocking warning)
- */
 export async function checkPhoneExists(
   phone: string,
   excludeIdNumber?: string
@@ -707,6 +685,132 @@ export async function getRegisteredStudentByIdNumber(idNumber: string) {
   } catch (error) {
     console.error('Failed to get registered student by ID number:', error);
     return null;
+  }
+}
+
+export type RegisteredStudentWithLive = Awaited<
+  ReturnType<typeof getRegisteredStudentFull>
+>;
+
+export async function getRegisteredStudentFull(registeredId: number) {
+  try {
+    // 1. Fetch the registered_students row (all columns)
+    const regStudent = await db.query.registeredStudents.findFirst({
+      where: eq(registeredStudents.id, registeredId),
+    });
+
+    if (!regStudent) return null;
+
+    // 2. Find the matching students row via registered_student_id
+    const liveStudent = await db.query.students.findFirst({
+      where: eq(students.registeredStudentId, registeredId),
+    });
+
+    // 3. Merge: prefer live student_id over whatever is stored in registered_students
+    return {
+      ...regStudent,
+      // Always use the authoritative student_id from students table if available
+      studentId: liveStudent?.studentId ?? regStudent.studentId,
+      // Attach live operational fields as a nested object for the view page
+      liveStudent: liveStudent
+        ? {
+            id:             liveStudent.id,
+            studentId:      liveStudent.studentId,
+            className:      liveStudent.className,
+            classSection:   liveStudent.classSection,
+            status:         liveStudent.status,
+            enrollmentDate: liveStudent.enrollmentDate,
+            attendance:     liveStudent.attendance,
+            classId:        liveStudent.classId,
+          }
+        : null,
+    };
+  } catch (error) {
+    console.error('getRegisteredStudentFull error:', error);
+    return null;
+  }
+}
+export async function getRegisteredStudentByStudentsId(studentsId: number) {
+  try {
+    // Find the students row first
+    const liveStudent = await db.query.students.findFirst({
+      where: eq(students.id, studentsId),
+    });
+
+    if (!liveStudent?.registeredStudentId) return null;
+
+    // Then get the full registered record
+    return getRegisteredStudentFull(liveStudent.registeredStudentId);
+  } catch (error) {
+    console.error('getRegisteredStudentByStudentsId error:', error);
+    return null;
+  }
+}
+export async function getRegisteredStudentByStudentIdString(studentId: string) {
+  try {
+    // Try students table first (most authoritative source of student_id)
+    const liveStudent = await db.query.students.findFirst({
+      where: eq(students.studentId, studentId),
+    });
+
+    if (liveStudent?.registeredStudentId) {
+      return getRegisteredStudentFull(liveStudent.registeredStudentId);
+    }
+
+    // Fallback: try registered_students directly (for older/partially migrated data)
+    const regStudent = await db.query.registeredStudents.findFirst({
+      where: eq(registeredStudents.studentId, studentId),
+    });
+
+    if (!regStudent) return null;
+    return getRegisteredStudentFull(regStudent.id);
+  } catch (error) {
+    console.error('getRegisteredStudentByStudentIdString error:', error);
+    return null;
+  }
+}
+
+export async function getRegisteredStudentsWithLive() {
+  try {
+    const rows = await db
+      .select({
+        // All registered_students columns
+        id:                registeredStudents.id,
+        studentId:         registeredStudents.studentId,
+        surname:           registeredStudents.surname,
+        name:              registeredStudents.name,
+        preferredName:     registeredStudents.preferredName,
+        dateOfBirth:       registeredStudents.dateOfBirth,
+        idNumber:          registeredStudents.idNumber,
+        sex:               registeredStudents.sex,
+        phone:             registeredStudents.phone,
+        email:             registeredStudents.email,
+        address:           registeredStudents.address,
+        dateOfEnrolment:   registeredStudents.dateOfEnrolment,
+        status:            registeredStudents.status,
+        createdAt:         registeredStudents.createdAt,
+        updatedAt:         registeredStudents.updatedAt,
+        // Live students columns (may be NULL if not yet migrated)
+        liveStudentId:     students.studentId,
+        liveStudentsRowId: students.id,
+        liveClassName:     students.className,
+        liveClassSection:  students.classSection,
+        liveStatus:        students.status,
+        liveEnrollment:    students.enrollmentDate,
+        liveAttendance:    students.attendance,
+      })
+      .from(registeredStudents)
+      .leftJoin(students, eq(students.registeredStudentId, registeredStudents.id))
+      .orderBy(registeredStudents.surname, registeredStudents.name);
+
+    // Normalise: use live student_id when available
+    return rows.map((r) => ({
+      ...r,
+      studentId: r.liveStudentId ?? r.studentId,
+    }));
+  } catch (error) {
+    console.error('getRegisteredStudentsWithLive error:', error);
+    return [];
   }
 }
 
