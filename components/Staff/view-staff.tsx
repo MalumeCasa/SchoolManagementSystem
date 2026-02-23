@@ -2,16 +2,22 @@ import { getStaffById } from '@api/staff-actions';
 import ViewStaffForm from './view-staff-form';
 import { notFound } from 'next/navigation';
 
-export default async function ViewStaffPage({ params }: { 
-    params: Promise<{ id: string }> 
-}) {
+type PageProps = {
+    params: Promise<{ id: string }>;
+    user?: any;
+};
+
+export default async function ViewStaffPage({ params, user }: PageProps) {
     const { id } = await params;
+
+    // Guard against non-numeric IDs before hitting the DB
+    if (isNaN(parseInt(id, 10))) notFound();
+
     const result = await getStaffById(id);
-    
+
     if (result.error || !result.success) {
-        notFound(); // This will show the Next.js 404 page
+        notFound();
     }
 
-    // Since getStaffById returns { success: true, data: staffMember }
-    return <ViewStaffForm staff={result.data} />; 
+    return <ViewStaffForm staff={result.data} user={user} />;
 }

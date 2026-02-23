@@ -60,7 +60,7 @@ const InfoField = ({ label, value }: { label: string; value?: string | null }) =
     </div>
 );
 
-export default function ViewStaffForm({ staff }: ViewStaffFormProps) {
+export default function ViewStaffForm({ user, staff }: ViewStaffFormProps & { user?: any }) {
     const router = useRouter();
 
     // Handle case where staff is undefined
@@ -113,13 +113,13 @@ export default function ViewStaffForm({ staff }: ViewStaffFormProps) {
                             </div>
                             <div className="flex gap-2 w-full sm:w-auto">
                                 <Link
-                                    href={`/dashboard/users/staff/${staff.id}/edit`}
+                                    href={`/staff/${staff.id}/edit`}
                                     className="flex-1 sm:flex-none px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-center"
                                 >
                                     Edit Profile
                                 </Link>
                                 <Link
-                                    href="/dashboard/users/staff"
+                                    href="/staff"
                                     className="flex-1 sm:flex-none px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors text-center"
                                 >
                                     Back
