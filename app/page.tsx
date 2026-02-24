@@ -10,6 +10,7 @@ import { TestimonialsSection } from "@components/Landing/testimonials-section"
 import { EnrolSection } from "@components/Landing/enrol-section"
 import { ContactSection } from "@components/Landing/contact-section"
 import { Footer } from "@components/Landing/footer"
+import  CompleteTeam  from '@components/Landing/staff-landing'
 
 export default function Home() {
   return (
@@ -24,6 +25,7 @@ export default function Home() {
       <GallerySection />
       <TestimonialsSection />
       <EnrolSection />
+      <CompleteTeam />
       <ContactSection />
       <Footer />
     </main>
