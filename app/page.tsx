@@ -11,6 +11,7 @@ import { EnrolSection } from "@components/Landing/enrol-section"
 import { ContactSection } from "@components/Landing/contact-section"
 import { Footer } from "@components/Landing/footer"
 import  CompleteTeam  from '@components/Landing/staff-landing'
+import Faq from "@components/Faq/Faq"
 
 export default function Home() {
   return (
@@ -26,6 +27,7 @@ export default function Home() {
       <TestimonialsSection />
       <EnrolSection />
       <CompleteTeam />
+      <Faq />
       <ContactSection />
       <Footer />
     </main>
