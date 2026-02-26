@@ -40,7 +40,6 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { UserRole } from "@/components/navItem";
 import { NavItem, navItems } from "@/components/navItem";
 
-
 interface LayoutProps {
   children: React.ReactNode;
   user: {

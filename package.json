@@ -30,7 +30,7 @@
     "react-icons": "^5.5.0",
     "tailwind-merge": "^3.4.0",
     "tesseract.js": "^7.0.0",
-    "vercel": "^50.22.1"
+    "vercel": "^41.0.2"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -40,7 +40,7 @@
     "@types/react-dom": "^19",
     "@typescript-eslint/eslint-plugin": "^8.56.1",
     "@typescript-eslint/parser": "^8.56.1",
-    "drizzle-kit": "^0.31.9",
+    "drizzle-kit": "^0.18.1",
     "eslint": "^10.0.2",
     "eslint-config-next": "^0.2.4",
     "shadcn": "^3.8.4",
