@@ -13,6 +13,9 @@ const quickLinks = [
   // landing page links for fees and staff
   { label: "Fees", href: "/Fees" },
   { label: "Staff", href: "/staff" },
+  // added FAQ and team anchors
+  { label: "FAQ", href: "#faq" },
+  { label: "Meet Our Team", href: "#CompleteTeam" },
 ]
 
 export function Footer() {
