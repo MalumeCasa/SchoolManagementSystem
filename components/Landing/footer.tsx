@@ -10,9 +10,10 @@ const quickLinks = [
   { label: "Gallery", href: "#gallery" },
   { label: "Contact", href: "#contact" },
   { label: "Enrol Now", href: "#enrol" },
-  // landing page links for fees and staff
+  // landing page links for fees, staff, developers
   { label: "Fees", href: "/Fees" },
   { label: "Staff", href: "/staff" },
+  { label: "Developers", href: "/developers" },
 ]
 
 export function Footer() {
