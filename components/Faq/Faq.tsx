@@ -59,7 +59,7 @@ const FAQSection = () => {
   const [openIndex, setOpenIndex] = useState<number | null>(0); // First one open by default
 
   return (
-    <section className="bg-gray-50 py-16 px-4 sm:px-6 lg:px-8">
+    <section id="faq" className="bg-gray-50 py-16 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto">
         <div className="text-center mb-12">
           <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">
