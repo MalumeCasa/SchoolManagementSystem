@@ -30,7 +30,7 @@
     "react-icons": "^5.5.0",
     "tailwind-merge": "^3.4.0",
     "tesseract.js": "^7.0.0",
-    "vercel": "^41.0.2"
+    "vercel": "^28.18.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
