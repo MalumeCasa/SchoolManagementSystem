@@ -4,7 +4,7 @@ import { Layout } from "@/components/layout";
 import ClassPage from "../../../components/Academics/Classes/ClassesPage"; // adjust path
 
 export const metadata = {
-  title: "Classes - EduManage",
+  title: "Classes - Kiddies Town ECD",
   description: "School Management System Class Directory",
 };
 

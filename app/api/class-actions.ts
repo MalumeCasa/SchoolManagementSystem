@@ -92,6 +92,19 @@ export async function createClassAndRedirect(formData: FormData) {
   return result;
 }
 
+export async function getClassCount() {
+  try {
+    const countResult = await db
+      .select()
+      .from(classes);
+
+    return { success: true, count: countResult.length };
+  } catch (error) {
+    console.error('Error counting classes:', error);
+    return { error: 'Failed to count classes' };
+  }
+}
+
 export async function getAllClasses() {
   try {
     const allClasses = await db

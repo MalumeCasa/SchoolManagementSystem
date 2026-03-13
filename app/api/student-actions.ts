@@ -1,6 +1,6 @@
 'use server';
 
-import { eq, sql } from 'drizzle-orm';
+import { eq, sql, count } from 'drizzle-orm';
 import { db } from './db';
 import { students, registeredStudents } from '@lib/db/schema';
 import { revalidatePath } from 'next/cache';
@@ -641,6 +641,16 @@ export async function getStudents() {
   } catch (error) {
     console.error('Failed to get students:', error);
     return [];
+  }
+}
+
+export async function getStudentCount() {
+  try {
+    const result = await db.select({ count: count() }).from(students);
+    return Number(result[0]?.count) || 0;
+  } catch (error) {
+    console.error('Failed to get student count:', error);
+    return 0;
   }
 }
 

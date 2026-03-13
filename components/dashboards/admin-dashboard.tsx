@@ -3,6 +3,9 @@ import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { Users, GraduationCap, School, UserCheck, TrendingUp, TrendingDown, Bell, Plus } from "lucide-react"
 import { getDashboardStats, getAnnouncements } from "@/lib/db"
+import { getStudentCount } from "@/app/api/student-actions"
+import { getClassCount } from "@/app/api/class-actions"
+
 
 interface AdminDashboardProps {
   user: {
@@ -12,8 +15,11 @@ interface AdminDashboardProps {
   }
 }
 
+const studentCount = await getStudentCount()
+const classCount = await getClassCount()
+
 export async function AdminDashboard({ user }: AdminDashboardProps) {
-  let stats = { totalStudents: 0, totalTeachers: 0, totalClasses: 0, todayAttendance: { present: 0, total: 0 } }
+  let stats = { totalStudents: studentCount, totalTeachers: 0, totalClasses: classCount.count, todayAttendance: { present: 0, total: 0 } }
   let announcements: any[] = []
 
   try {
@@ -35,7 +41,7 @@ export async function AdminDashboard({ user }: AdminDashboardProps) {
       icon: GraduationCap,
       trend: "+12%",
       trendUp: true,
-      href: "/dashboard/students",
+      href: "/students",
     },
     {
       title: "Total Teachers",
@@ -43,7 +49,7 @@ export async function AdminDashboard({ user }: AdminDashboardProps) {
       icon: Users,
       trend: "+3%",
       trendUp: true,
-      href: "/dashboard/teachers",
+      href: "/teachers",
     },
     {
       title: "Active Classes",
@@ -51,7 +57,7 @@ export async function AdminDashboard({ user }: AdminDashboardProps) {
       icon: School,
       trend: "0%",
       trendUp: true,
-      href: "/dashboard/classes",
+      href: "/academics/classes",
     },
     {
       title: "Today's Attendance",
