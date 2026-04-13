@@ -65,6 +65,33 @@ const STAFF_MEMBERS = [
     }
 ];
 
+const DEV_TEAM = [
+    {
+        name: "Developer [Name]",
+        role: "Lead Developer",
+        tags: ["Full Stack", "Next.js"],
+        image: "https://plus.unsplash.com/premium_photo-1661371243525-d02768a7feee?q=80&w=869&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+    },
+    {
+        name: "Developer [Name]",
+        role: "Frontend Developer",
+        tags: ["React", "UI/UX"],
+        image: "https://plus.unsplash.com/premium_photo-1663100725230-3935e03dc9b8?q=80&w=870&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+    },
+    {
+        name: "Developer [Name]",
+        role: "Backend Developer",
+        tags: ["Node.js", "Database"],
+        image: "https://plus.unsplash.com/premium_photo-1661484893238-8ca781a58177?q=80&w=870&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+    },
+    {
+        name: "Developer [Name]",
+        role: "DevOps Engineer",
+        tags: ["AWS", "CI/CD"],
+        image: "https://plus.unsplash.com/premium_photo-1661499699482-3fbf9779ccfa?q=80&w=387&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+    }
+];
+
 // 3. Directly export the default function
 export default async function CompleteTeam() {
     return (
@@ -110,6 +137,13 @@ export default async function CompleteTeam() {
                     {/* Staff Grid */}
                     <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-32">
                         {STAFF_MEMBERS.map((member, index) => (
+                            <TeamMember key={index} {...member} />
+                        ))}
+                    </section>
+
+                    {/* Developer Team Grid */}
+                    <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-32">
+                        {DEV_TEAM.map((member, index) => (
                             <TeamMember key={index} {...member} />
                         ))}
                     </section>

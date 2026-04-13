@@ -175,10 +175,10 @@ export default async function Home() {
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
                 <School className="h-4 w-4 text-primary-foreground" />
               </div>
-              <span className="font-semibold">EduManage</span>
+              <span className="font-semibold">Kiddies Town Portal</span>
             </div>
             <p className="text-sm text-muted-foreground">
-              &copy; 2026 EduManage School Management System. All rights reserved.
+              &copy; 2026 Kiddies Town Portal. All rights reserved.
             </p>
           </div>
         </div>
