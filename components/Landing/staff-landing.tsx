@@ -43,19 +43,19 @@ const STAFF_MEMBERS = [
         name: "Teacher [Name]",
         role: "Grade R Educator",
         tags: ["Academics", "School Prep"],
-        image: "https://images.unsplash.com/photo-1580894732230-2838963bc3c3?auto=format&fit=crop&q=80&w=400"
+        image: "https://images.unsplash.com/photo-1545566071-5721f3acedb3?q=80&w=387&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
     },
     {
         name: "Aunty [Name]",
         role: "Early Years Nurturer",
         tags: ["Toddler Care", "Sensory"],
-        image: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=400"
+        image: "https://images.unsplash.com/photo-1698226789841-19fb26e309eb?q=80&w=387&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
     },
     {
         name: "Coach [Name]",
         role: "Physical Dev Coach",
         tags: ["Sports", "Wellness"],
-        image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=400"
+        image: "https://plus.unsplash.com/premium_photo-1661962978096-9d03e3a43e97?q=80&w=1470&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
     },
     {
         name: "[Name]",
@@ -93,7 +93,7 @@ export default async function CompleteTeam() {
                         <div className="w-full md:w-1/3 relative">
                             <div className="absolute inset-0 bg-orange-400 rounded-full translate-x-4 translate-y-4 opacity-20"></div>
                             <img
-                                src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=400"
+                                src="https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=387&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
                                 alt="Principal"
                                 className="relative rounded-full aspect-square object-cover border-8 border-white shadow-lg"
                             />
@@ -114,7 +114,7 @@ export default async function CompleteTeam() {
                         ))}
                     </section>
 
-                    {/* Join Our Team (Careers) Section */}
+                    {/* Join Our Team (Careers) Section 
                     <section className="bg-slate-900 rounded-[3rem] p-12 md:p-20 text-center relative overflow-hidden">
                         <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl"></div>
                         <div className="absolute bottom-0 left-0 w-64 h-64 bg-orange-500/10 rounded-full blur-3xl"></div>
@@ -133,6 +133,7 @@ export default async function CompleteTeam() {
                             </button>
                         </div>
                     </section>
+                    */}
 
                 </div>
             </div>
