@@ -75,7 +75,10 @@ export function Navbar() {
 
         <div className="hidden lg:block">
           <Button asChild size="lg" className="font-bold bg-logo-orange hover:bg-logo-orange/90 text-white">
-            <Link href="/home">Enrol Now</Link>
+            <Link href="/register">Enrol Now</Link>
+          </Button>
+          <Button asChild size="lg" className="font-bold bg-logo-green hover:bg-logo-green/90 text-white ml-4">
+            <Link href="/login">Login</Link>
           </Button>
         </div>
 
