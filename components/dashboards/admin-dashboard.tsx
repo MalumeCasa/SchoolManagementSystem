@@ -79,7 +79,7 @@ export async function AdminDashboard({ user }: AdminDashboardProps) {
         </div>
         <div className="flex gap-2">
           <Button asChild>
-            <Link href="/dashboard/students/new">
+            <Link href="/register/new/student">
               <Plus className="mr-2 h-4 w-4" />
               Add Student
             </Link>
@@ -123,7 +123,7 @@ export async function AdminDashboard({ user }: AdminDashboardProps) {
           </CardHeader>
           <CardContent className="grid gap-3 sm:grid-cols-2">
             <Button variant="outline" className="h-auto justify-start p-4 bg-transparent" asChild>
-              <Link href="/dashboard/students/new">
+              <Link href="/register/new/student">
                 <GraduationCap className="mr-3 h-5 w-5 text-primary" />
                 <div className="text-left">
                   <div className="font-medium">Register Student</div>
@@ -132,10 +132,10 @@ export async function AdminDashboard({ user }: AdminDashboardProps) {
               </Link>
             </Button>
             <Button variant="outline" className="h-auto justify-start p-4 bg-transparent" asChild>
-              <Link href="/dashboard/teachers/new">
+              <Link href="/staff/new">
                 <Users className="mr-3 h-5 w-5 text-primary" />
                 <div className="text-left">
-                  <div className="font-medium">Add Teacher</div>
+                  <div className="font-medium">Add Staff</div>
                   <div className="text-xs text-muted-foreground">New staff member</div>
                 </div>
               </Link>

@@ -6,7 +6,7 @@ import Link from "next/link"
 import { School } from "lucide-react"
 
 export const metadata = {
-  title: "Sign In - EduManage",
+  title: "Sign In - Kiddies Town Portal",
   description: "Sign in to your school account",
 }
 
@@ -30,7 +30,7 @@ export default async function LoginPage({
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
               <School className="h-5 w-5 text-primary-foreground" />
             </div>
-            <span className="text-xl font-semibold">EduManage</span>
+            <span className="text-xl font-semibold">Kiddies Town Portal</span>
           </Link>
         </div>
       </header>

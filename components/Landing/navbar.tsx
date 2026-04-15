@@ -108,8 +108,14 @@ export function Navbar() {
               </li>
             ))}
           </ul>
-          <Button asChild size="lg" className="w-full mt-4 font-bold bg-logo-orange hover:bg-logo-orange/90 text-white">
-            <Link href="/home" onClick={() => setMobileOpen(false)}>
+          <Button asChild size="lg" className="w-full mt-4 font-bold bg-logo-green hover:bg-logo-green/90 text-white mb-2">
+            <Link href="/login" onClick={() => setMobileOpen(false)}>
+              Login
+            </Link>
+          </Button>
+
+          <Button asChild size="lg" className="w-full mt-4 font-bold bg-logo-blue hover:bg-logo-blue/90 text-white">
+            <Link href="/register" onClick={() => setMobileOpen(false)}>
               Enrol Now
             </Link>
           </Button>

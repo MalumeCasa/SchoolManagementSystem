@@ -4,7 +4,7 @@ import { Layout } from "@/components/layout";
 import FeesManagementPage from "@/components/Management/Fees/FeesManagementPage";
 
 export const metadata = {
-  title: "Fees Management - EduManage",
+  title: "Fees Management - Kiddies Town Portal",
   description: "School Management System Student Fees Management",
 };
 

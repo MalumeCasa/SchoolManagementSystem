@@ -134,6 +134,23 @@ export default async function CompleteTeam() {
                         </div>
                     </section>
 
+                    
+
+                    {/* Staff Members Section */}
+                    <div className="mb-16">
+                        <h2 className="text-4xl md:text-5xl font-bold text-slate-900 mb-2 tracking-tight">
+                            Staff Members
+                        </h2>
+                        <div className="h-1 w-24 bg-gradient-to-r from-orange-500 to-rose-500 rounded-full"></div>
+                    </div>
+
+                    {/* Team Introduction */}
+                    <div className="mb-20">
+                        <p className="text-lg text-slate-600 leading-relaxed">
+                            Our dedicated team of educators, nurturers, and support staff are the backbone of Kiddies Town. Each member brings a unique blend of passion, expertise, and love for early childhood development, creating a nurturing environment where every child can thrive.
+                        </p>
+                    </div>
+
                     {/* Staff Grid */}
                     <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-32">
                         {STAFF_MEMBERS.map((member, index) => (
@@ -141,12 +158,34 @@ export default async function CompleteTeam() {
                         ))}
                     </section>
 
+                    {/* Developers Section */}
+                    <div className="mb-16">
+                        <h2 className="text-4xl md:text-5xl font-bold text-slate-900 mb-2 tracking-tight">
+                            Developers
+                        </h2>
+                        <div className="h-1 w-24 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"></div>
+                    </div>
+
+                    {/* Developer Introduction */}
+                    <div className="mb-20">
+                        <p className="text-lg text-slate-600 leading-relaxed">
+                            Behind the scenes, our talented development team has crafted this portal to seamlessly connect parents, staff, and students. With a focus on user experience and functionality, they ensure that our digital presence reflects the warmth and professionalism of Kiddies Town.
+                        </p>
+                    </div>
+
                     {/* Developer Team Grid */}
                     <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-32">
                         {DEV_TEAM.map((member, index) => (
                             <TeamMember key={index} {...member} />
                         ))}
                     </section>
+
+                    {/* Team Introduction */}
+                    <div className="mb-20">
+                        <p className="text-lg text-slate-600 leading-relaxed">
+                            More about the team and the development process can be found <a href="/developers" className="text-blue-600 hover:underline ml-1">here</a>.
+                        </p>
+                    </div>
 
                     {/* Join Our Team (Careers) Section 
                     <section className="bg-slate-900 rounded-[3rem] p-12 md:p-20 text-center relative overflow-hidden">

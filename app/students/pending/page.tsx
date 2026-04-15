@@ -4,7 +4,7 @@ import { Layout } from "@/components/layout";
 import StudentVerificationPage from "@components/Student/student-verification";
 
 export const metadata = {
-  title: "Student Verification - EduManage",
+  title: "Student Verification - Kiddies Town Portal",
   description: "School Management System Student Verification Page",
 };
 

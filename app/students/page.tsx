@@ -4,7 +4,7 @@ import { Layout } from "@/components/layout";
 import StudentDirectoryPage from "@components/Management/Students/StudentDirectory";
 
 export const metadata = {
-  title: "Students - EduManage",
+  title: "Students - Kiddies Town Portal",
   description: "School Management System Student Directory",
 };
 

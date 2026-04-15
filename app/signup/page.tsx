@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { GraduationCap, BookOpen, Users } from "lucide-react";
 
 export const metadata = {
-  title: "Sign Up - EduManage School System",
+  title: "Sign Up - Kiddies Town Portal",
   description: "Create a new account to get started with the school management system",
 };
 
@@ -26,7 +26,7 @@ export default async function SignupPage() {
             <div className="p-2 rounded-xl bg-primary/10">
               <GraduationCap className="h-8 w-8 text-primary" />
             </div>
-            <span className="text-2xl font-bold">EduManage</span>
+            <span className="text-2xl font-bold">Kiddies Town Portal</span>
           </div>
           <p className="text-muted-foreground">School Management System</p>
         </div>

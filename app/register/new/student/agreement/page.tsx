@@ -4,7 +4,7 @@ import { Layout } from "@/components/layout";
 import StudentAgreementFormPage from "@components/Student/agreement-form";
 
 export const metadata = {
-  title: "Register Student - EduManage",
+  title: "Register Student - Kiddies Town Portal",
   description: "School Management System Student Registration",
 };
 

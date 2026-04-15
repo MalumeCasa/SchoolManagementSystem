@@ -5,7 +5,7 @@ import LeaveManagementPage from "@components/Management/Staff/StaffLeaveManage";
 
 
 export const metadata = {
-  title: "Staff Leave - EduManage",
+  title: "Staff Leave - Kiddies Town Portal",
   description: "School Management System Staff Leave Management",
 };
 

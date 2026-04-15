@@ -59,6 +59,48 @@ const removeDuplicatesById = <T extends { id: string | number }>(arr: T[]): T[] 
   })
 }
 
+/**
+ * Remove duplicate strings from an array with case-insensitive comparison.
+ */
+const removeDuplicateStrings = (arr: string[]): string[] => {
+  const seen = new Set<string>()
+  const result: string[] = []
+  
+  for (const item of arr) {
+    const normalized = normalise(item)
+    if (!seen.has(normalized)) {
+      seen.add(normalized)
+      result.push(item)
+    }
+  }
+  
+  return result
+}
+
+/**
+ * Deduplicate class objects by class name (case-insensitive).
+ */
+const deduplicateClasses = (classes: any[]): any[] => {
+  const seen = new Set<string>()
+  const unique: any[] = []
+  
+  for (const cls of classes) {
+    const className = (cls.className || "").trim()
+    const normalized = normalise(className)
+    
+    if (!className) continue
+    
+    if (!seen.has(normalized)) {
+      seen.add(normalized)
+      unique.push(cls)
+    } else {
+      console.warn(`Duplicate class found and removed: "${className}"`)
+    }
+  }
+  
+  return unique
+}
+
 const generateUniqueId = () => Math.floor(Math.random() * 1_000_000) + Date.now()
 
 const formatNumber = (num: number): string => {
@@ -158,6 +200,7 @@ const ClassesPage: React.FC = () => {
   const [unmappedWarning, setUnmappedWarning] = useState<string[]>([])
   const [lastUpdated,     setLastUpdated]     = useState<Date | null>(null)
   const [showUnassigned,  setShowUnassigned]  = useState(false)
+  const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null)
 
   const searchInputRef = useRef<HTMLInputElement>(null)
 
@@ -170,10 +213,22 @@ const ClassesPage: React.FC = () => {
       { name: "Unassigned Data", classes: ["Unassigned Students", "Unassigned Teachers", "Unassigned Subjects"] },
     ]
 
+    // Track assigned classes to prevent duplicates across sections
+    const assignedClasses = new Set<string>()
+    
     classesFromDB.forEach(ci => {
       const name    = (ci.className || "").trim()
       const section = (ci.classSection || "").toLowerCase()
       if (!name) return
+      
+      // Skip if this class has already been assigned
+      const normalizedName = normalise(name)
+      if (assignedClasses.has(normalizedName)) {
+        console.warn(`Skipping duplicate class: "${name}"`)
+        return
+      }
+      
+      assignedClasses.add(normalizedName)
       const lower = name.toLowerCase()
 
       if      (section.includes("nursery")   || lower.includes("nursery")   || lower.includes("kg"))                                sections[0].classes.push(name)
@@ -181,15 +236,16 @@ const ClassesPage: React.FC = () => {
       else                                                                                                                           sections[1].classes.push(name)
     })
 
-    sections.forEach(s => s.classes.sort((a, b) => a.localeCompare(b, undefined, { numeric: true })))
+    // Remove duplicates within each section and sort
+    sections.forEach(s => {
+      s.classes = removeDuplicateStrings(s.classes)
+      s.classes.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+    })
+    
     return sections
   }, [])
 
   // ── organizeTeachersByClass ──────────────────────────────────────────────
-  //
-  // Teachers are matched by name against the string-array stored on each
-  // class document (classes.teachers). Since that array holds names (not IDs)
-  // we must fuzzy-match; we apply normalise() on both sides.
   const organizeTeachersByClass = useCallback((teachersFromDB: any[], classesFromDB: any[]) => {
     const byClass:    Record<string, Teacher[]> = {}
     const unassigned: Teacher[]                 = []
@@ -201,13 +257,18 @@ const ClassesPage: React.FC = () => {
       byClass[cn] = []
 
       const teacherNames: string[] = ci.teachers ?? []
+      const assignedTeacherIds = new Set<string | number>()
+      
       teacherNames.forEach((tName: string) => {
         const normSearch = normalise(tName)
         const found = unique.find((t: Teacher) => {
           const full = normalise(`${t.name ?? ""} ${t.surname ?? ""}`.trim())
           return full.includes(normSearch) || normSearch.includes(normalise(t.name))
         })
-        if (found) byClass[cn].push(found)
+        if (found && !assignedTeacherIds.has(found.id)) {
+          assignedTeacherIds.add(found.id)
+          byClass[cn].push(found)
+        }
       })
       byClass[cn] = removeDuplicatesById(byClass[cn])
     })
@@ -221,29 +282,7 @@ const ClassesPage: React.FC = () => {
   }, [])
 
   // ── organizeSubjectsByClass ──────────────────────────────────────────────
-  //
-  // ┌─────────────────────────────────────────────────────────────────────┐
-  // │  ROOT CAUSE OF THE MISSING-SUBJECTS BUG                             │
-  // │                                                                     │
-  // │  The old code matched subjects via the name-array on the class doc  │
-  // │  (ci.subjects[]). That array may be empty, stale, or use different  │
-  // │  spellings than the actual subject records — so subjects that ARE   │
-  // │  assigned to a class simply don't appear.                           │
-  // │                                                                     │
-  // │  Per schema.ts, the subjects table has its OWN class_name column:   │
-  // │    subjects.class_name  TEXT  NOT NULL                              │
-  // │                                                                     │
-  // │  This is the authoritative link, exactly the same pattern as        │
-  // │  students.class_name → classes.class_name.                          │
-  // │                                                                     │
-  // │  FIX: build a canonical-name lookup map from classesFromDB, then   │
-  // │  for every subject look up subjects.class_name in that map.         │
-  // │  No fuzzy string matching required; trim+lower is sufficient.       │
-  // └─────────────────────────────────────────────────────────────────────┘
   const organizeSubjectsByClass = useCallback((subjectsFromDB: any[], classesFromDB: any[]) => {
-    // Build O(1) canonical lookup map
-    //   key:   normalise(classes.class_name)
-    //   value: exact display name from the DB
     const canonicalMap = new Map<string, string>()
     classesFromDB.forEach(ci => {
       const canonical = (ci.className || "").trim()
@@ -253,22 +292,22 @@ const ClassesPage: React.FC = () => {
     const byClass:    Record<string, Subject[]> = {}
     const unassigned: Subject[]                 = []
 
-    // Initialise a bucket for every known class
     canonicalMap.forEach(canonical => { byClass[canonical] = [] })
     byClass["Unassigned Subjects"] = []
 
     const unique = removeDuplicatesById(subjectsFromDB ?? [])
+    const assignedSubjectIds = new Set<string | number>()
 
     unique.forEach((s: any) => {
-      // subjects.class_name is the DB column; APIs may camelCase it
+      if (assignedSubjectIds.has(s.id)) return
+      
       const rawClassName = (s.className ?? s.class_name ?? "").trim()
       const canonical    = canonicalMap.get(normalise(rawClassName))
 
       if (canonical) {
+        assignedSubjectIds.add(s.id)
         byClass[canonical].push(s as Subject)
       } else {
-        // ── Fallback: try matching via the class name-arrays on the class docs
-        //    (handles edge cases where subjects.class_name is missing/blank)
         const sName = normalise(s.name ?? "")
         let fallbackMatch: string | undefined
 
@@ -287,6 +326,7 @@ const ClassesPage: React.FC = () => {
         }
 
         if (fallbackMatch) {
+          assignedSubjectIds.add(s.id)
           byClass[fallbackMatch].push(s as Subject)
         } else {
           unassigned.push(s as Subject)
@@ -294,10 +334,8 @@ const ClassesPage: React.FC = () => {
       }
     })
 
-    // De-dup every bucket
     Object.keys(byClass).forEach(cn => { byClass[cn] = removeDuplicatesById(byClass[cn]) })
 
-    // Prune empty non-special buckets
     Object.keys(byClass).forEach(cn => {
       if (!byClass[cn].length && !cn.includes("Unassigned")) delete byClass[cn]
     })
@@ -306,8 +344,6 @@ const ClassesPage: React.FC = () => {
   }, [])
 
   // ── mapStudentsToClasses ─────────────────────────────────────────────────
-  //
-  // Uses students.class_name (schema column) matched against classes.class_name.
   const mapStudentsToClasses = useCallback((studentsFromDB: any[], classesFromDB: any[]) => {
     const canonicalMap = new Map<string, string>()
     classesFromDB.forEach(ci => {
@@ -321,10 +357,16 @@ const ClassesPage: React.FC = () => {
     canonicalMap.forEach(canonical => { byClass[canonical] = [] })
     byClass["Unassigned Students"] = []
 
-    studentsFromDB.forEach(raw => {
+    const uniqueStudents = removeDuplicatesById(studentsFromDB)
+    const assignedStudentIds = new Set<string | number>()
+
+    uniqueStudents.forEach(raw => {
+      if (assignedStudentIds.has(raw.id)) return
+      
       const rawClassName = raw.className ?? raw.class_name ?? raw.class ?? ""
       const canonical    = canonicalMap.get(normalise(rawClassName))
       if (canonical) {
+        assignedStudentIds.add(raw.id)
         byClass[canonical].push(raw as Student)
       } else {
         unassigned.push(raw as Student)
@@ -335,7 +377,7 @@ const ClassesPage: React.FC = () => {
 
     const unmatchedClassNames = Array.from(
       new Set(
-        studentsFromDB
+        uniqueStudents
           .map(r => (r.className ?? r.class_name ?? r.class ?? "").trim())
           .filter(cn => cn && !canonicalMap.has(normalise(cn)))
       )
@@ -365,6 +407,7 @@ const ClassesPage: React.FC = () => {
       setLoading(true)
       setError(null)
       setUnmappedWarning([])
+      setDuplicateWarning(null)
 
       setClassDataState(prev => ({
         ...prev,
@@ -385,17 +428,30 @@ const ClassesPage: React.FC = () => {
         throw new Error("Failed to load classes")
       }
 
-      const classesDB = classesResult.data
+      // Deduplicate classes before processing
+      const originalCount = classesResult.data.length
+      const classesDB = deduplicateClasses(classesResult.data)
+      
+      if (classesDB.length < originalCount) {
+        setDuplicateWarning(`Found and removed ${originalCount - classesDB.length} duplicate class(es)`)
+      }
 
       // Organise sidebar sections
       const organizedSections = organizeClassesBySection(classesDB)
       setClassSections(organizedSections)
 
-      // Seed classDataState
+      // Seed classDataState with deduplicated classes
       const seedClassData: Record<string, ClassData> = {}
+      const seenClassNames = new Set<string>()
+      
       classesDB.forEach(ci => {
         const cn = (ci.className || "").trim()
         if (!cn) return
+        
+        const normalizedName = normalise(cn)
+        if (seenClassNames.has(normalizedName)) return
+        seenClassNames.add(normalizedName)
+        
         seedClassData[cn] = {
           students:   0,
           subjects:   ci.subjects?.length ?? 0,
@@ -410,13 +466,11 @@ const ClassesPage: React.FC = () => {
         setTeachersDataState(organizeTeachersByClass(teachersResult.data, classesDB))
       }
 
-      // Subjects — now uses the fixed schema-aware function
+      // Subjects
       if (subjectsResult?.success && Array.isArray(subjectsResult.data)) {
         const subjectsByClass = organizeSubjectsByClass(subjectsResult.data, classesDB)
         setSubjectsDataState(subjectsByClass)
 
-        // Sync subject counts in classDataState from the actual mapped data,
-        // not from the potentially-stale ci.subjects[] array length.
         setClassDataState(prev => {
           const updated = { ...prev }
           Object.keys(subjectsByClass).forEach(cn => {
@@ -526,6 +580,14 @@ const ClassesPage: React.FC = () => {
     const oldName = classSections.find(s => s.name === editingClass.section)?.classes[editingClass.index]
     const newName = editValue.trim()
     if (!oldName || oldName === newName) { setEditingClass(null); setEditValue(""); return }
+    
+    // Check for duplicate class name
+    const allClasses = classSections.flatMap(s => s.classes)
+    if (allClasses.some(c => normalise(c) === normalise(newName) && c !== oldName)) {
+      alert("A class with this name already exists!")
+      return
+    }
+    
     setClassSections(prev =>
       prev.map(s => {
         if (s.name !== editingClass.section) return s
@@ -546,6 +608,13 @@ const ClassesPage: React.FC = () => {
     if (!editingSection || !sectionEditValue.trim()) return
     const newName = sectionEditValue.trim()
     if (editingSection === newName) { setEditingSection(null); setSectionEditValue(""); return }
+    
+    // Check for duplicate section name
+    if (classSections.some(s => s.name === newName)) {
+      alert("A section with this name already exists!")
+      return
+    }
+    
     setClassSections(prev => prev.map(s => s.name === editingSection ? { ...s, name: newName } : s))
     setExpandedSections(prev => prev.map(s => s === editingSection ? newName : s))
     setEditingSection(null); setSectionEditValue("")
@@ -560,7 +629,14 @@ const ClassesPage: React.FC = () => {
     const raw = window.prompt(`Enter name for new class in ${sectionName}:`)
     if (!raw?.trim()) return
     const trimmed = raw.trim()
-    if (section.classes.includes(trimmed)) { alert("A class with this name already exists!"); return }
+    
+    // Check for duplicate class name across all sections
+    const allClasses = classSections.flatMap(s => s.classes)
+    if (allClasses.some(c => normalise(c) === normalise(trimmed))) {
+      alert("A class with this name already exists!")
+      return
+    }
+    
     setClassSections(prev => prev.map(s => s.name === sectionName ? { ...s, classes: [...s.classes, trimmed] } : s))
     setClassDataState(prev => ({ ...prev, [trimmed]: { students: 0, subjects: 0, teacher: "Not assigned", activities: [] } }))
   }
@@ -581,18 +657,29 @@ const ClassesPage: React.FC = () => {
         e.preventDefault()
         searchInputRef.current?.focus()
       }
+      // ESC to cancel editing
+      if (e.key === "Escape") {
+        if (editingClass) cancelEdit()
+        if (editingSection) cancelSectionEdit()
+      }
     }
     window.addEventListener("keydown", handler)
     return () => window.removeEventListener("keydown", handler)
-  }, [])
+  }, [editingClass, editingSection])
 
   // ── Derived stats ─────────────────────────────────────────────────────────
   const stats = useMemo(() => {
     const allStudents = Object.values(studentsDataState).flat()
     const allTeachers = Object.values(teachersDataState).flat()
     const allSubjects = Object.values(subjectsDataState).flat()
+    
+    // Count unique classes across all sections
+    const uniqueClasses = new Set(
+      classSections.flatMap(s => s.classes.map(c => normalise(c)))
+    )
+    
     return {
-      classes:            classSections.flatMap(s => s.classes).length,
+      classes:            uniqueClasses.size,
       students:           new Set(allStudents.map(s => s.id)).size,
       teachers:           new Set(allTeachers.map(t => t.id)).size,
       subjects:           new Set(allSubjects.map(s => s.id)).size,
@@ -679,6 +766,24 @@ const ClassesPage: React.FC = () => {
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {quickActions.map((action, idx) => <QuickActionCard key={idx} {...action} />)}
         </div>
+
+        {/* ── Duplicate Warning Banner ── */}
+        <AnimatePresence>
+          {duplicateWarning && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-950/50"
+            >
+              <FiInfo className="mt-0.5 h-5 w-5 text-blue-600 dark:text-blue-400" />
+              <div className="flex-1">
+                <p className="font-semibold text-blue-800 dark:text-blue-300">Duplicate Classes Detected</p>
+                <p className="text-sm text-blue-700 dark:text-blue-400">{duplicateWarning}</p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* ── Error Banner ── */}
         <AnimatePresence>
