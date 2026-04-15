@@ -7,7 +7,7 @@ import { TeacherDashboard } from "@/components/dashboards/teacher-dashboard"
 import { StudentDashboard } from "@/components/dashboards/student-dashboard"
 
 export const metadata = {
-  title: "Dashboard - EduManage",
+  title: "Dashboard - Kiddies Town Portal",
   description: "School Management System Dashboard",
 }
 

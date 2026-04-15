@@ -4,7 +4,7 @@ import { Layout } from "@/components/layout";
 import StaffAttendancePage from "@components/Management/Staff/StaffAttendance";
 
 export const metadata = {
-  title: "Staff Attendance - EduManage",
+  title: "Staff Attendance - Kiddies Town Portal",
   description: "School Management System Staff Attendance",
 };
 

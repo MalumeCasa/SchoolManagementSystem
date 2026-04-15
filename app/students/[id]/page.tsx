@@ -7,7 +7,7 @@ import LoadingSpinner from '@/components/Staff/common/LoadingSpinner';
 import EditStudentPage from '@components/Management/Students/view-student';
 
 export const metadata: Metadata = {
-  title: 'Student Profile - School Management System',
+  title: 'Student Profile - Kiddies Town Portal',
   description: 'View student details and information',
 };
 

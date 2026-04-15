@@ -5,7 +5,7 @@ import StaffPerformancePage from "@components/Management/Staff/StaffPerformance"
 
 
 export const metadata = {
-  title: "Staff Performance - EduManage",
+  title: "Staff Performance - Kiddies Town Portal",
   description: "School Management System Staff Performance Management",
 };
 

@@ -4,7 +4,7 @@ import { Layout } from "@/components/layout";
 import MedicalConsentPage from "@components/Student/MedicalConsent";
 
 export const metadata = {
-  title: "Register Student Medical Consent - EduManage",
+  title: "Register Student Medical Consent - Kiddies Town Portal",
   description: "School Management System Student Registration",
 };
 

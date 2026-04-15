@@ -6,7 +6,7 @@ import { School, ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 export const metadata = {
-  title: "Student Registration - EduManage",
+  title: "Student Registration - Kiddies Town Portal",
   description: "Register as a new student",
 }
 

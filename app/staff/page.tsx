@@ -5,7 +5,7 @@ import StaffDirectoryPage from "@components/Management/Staff/StaffDirectory";
 
 
 export const metadata = {
-  title: "Staff - EduManage",
+  title: "Staff - Kiddies Town Portal",
   description: "School Management System Staff Directory",
 };
 
