@@ -132,10 +132,10 @@ export async function AdminDashboard({ user }: AdminDashboardProps) {
               </Link>
             </Button>
             <Button variant="outline" className="h-auto justify-start p-4 bg-transparent" asChild>
-              <Link href="/dashboard/teachers/new">
+              <Link href="/staff/new">
                 <Users className="mr-3 h-5 w-5 text-primary" />
                 <div className="text-left">
-                  <div className="font-medium">Add Teacher</div>
+                  <div className="font-medium">Add Staff</div>
                   <div className="text-xs text-muted-foreground">New staff member</div>
                 </div>
               </Link>
